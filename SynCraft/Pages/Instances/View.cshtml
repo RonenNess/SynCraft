@@ -1,0 +1,648 @@
+@page "{id:int}"
+@model SynCraft.Pages.Instances.ViewModel
+@using SynCraft.Models
+@{
+    ViewData["Title"] = Model.Instance.Name;
+    var today = DateTime.Today;
+    var todayPos = Model.GetPosition(today);
+    var targetPos = Model.GetPosition(Model.Instance.TargetDate);
+    string F(double v) => v.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+        <h2 class="mb-0">@Model.Instance.Name</h2>
+        <small class="text-muted">
+            Template: @(Model.Instance.ProcessTemplate?.Name ?? "Unknown") &middot;
+            Target: <strong>@Model.Instance.TargetDate.ToString("yyyy-MM-dd")</strong> &middot;
+            Status:
+            @if (Model.Instance.Status == ProcessStatus.Completed)
+            {
+                <span class="badge bg-success">Completed</span>
+            }
+            else
+            {
+                <span class="badge bg-primary">Active</span>
+            }
+        </small>
+    </div>
+    <div>
+        @if (Model.Instance.Status == ProcessStatus.Active && Model.Instance.CanComplete)
+        {
+            <form method="post" asp-page-handler="CompleteProcess" asp-route-id="@Model.Instance.Id" class="d-inline">
+                <button type="submit" class="btn btn-success" onclick="return confirm('Mark this process as completed?')">
+                    ✓ Mark Complete
+                </button>
+            </form>
+        }
+        @if (Model.Instance.Status == ProcessStatus.Active)
+        {
+            <button type="button" class="btn btn-outline-warning"
+                    data-bs-toggle="modal" data-bs-target="#pushDeadlineModal">
+                ⏩ Push Deadline
+            </button>
+        }
+        <button type="button" class="btn btn-outline-danger"
+                data-bs-toggle="modal" data-bs-target="#deleteProcessModal">
+            🗑 Delete
+        </button>
+        <a asp-page="Index" class="btn btn-outline-secondary">← Back</a>
+    </div>
+</div>
+
+@{
+    var doneCount = Model.Instance.Steps.Count(s => s.State == StepState.Done || s.State == StepState.Cancelled);
+    var totalCount = Model.Instance.Steps.Count;
+    var pct = totalCount > 0 ? (int)(100.0 * doneCount / totalCount) : 0;
+}
+<div class="progress mb-4" style="height: 8px;">
+    <div class="progress-bar @(pct == 100 ? "bg-success" : "bg-primary")" style="width: @pct%;"></div>
+</div>
+
+@if (Model.Instance.Steps.Count == 0)
+{
+    <div class="alert alert-info">This process has no steps.</div>
+}
+else
+{
+    <div class="timeline-container mb-4" style="position: relative;">
+        <!-- Timeline header with date markers -->
+        <div class="timeline-header">
+            <div class="timeline-label"></div>
+            <div class="timeline-track">
+                @{
+                    var markerInterval = Math.Max(1, Model.TimelineDays / 10);
+                    for (int d = 0; d <= Model.TimelineDays; d += markerInterval)
+                    {
+                        var markerDate = Model.TimelineStart.AddDays(d);
+                        var pos = Model.GetPosition(markerDate);
+                        <div class="timeline-date-marker" style="left: @pos.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;">
+                            <span>@markerDate.ToString("MMM dd")</span>
+                        </div>
+                    }
+                }
+                <!-- Today marker -->
+                <div class="timeline-today" style="left: @todayPos.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;"
+                     title="Today (@today.ToString("yyyy-MM-dd"))">
+                    <div class="today-line"></div>
+                    <span class="today-label">Today</span>
+                </div>
+                <!-- Target date marker (always shown as red thick line) -->
+                <div class="timeline-target" style="left: @targetPos.ToString("F2", System.Globalization.CultureInfo.InvariantCulture)%;"
+                     title="Target Date (@Model.Instance.TargetDate.ToString("yyyy-MM-dd"))">
+                    <div class="target-line"></div>
+                    <span class="target-label">Target</span>
+                </div>
+                <!-- Milestone markers -->
+                @foreach (var ms in Model.Milestones)
+                {
+                    var msPos = Model.GetPosition(ms.Date);
+                    var msColor = ms.Color switch
+                    {
+                        MilestoneColor.Green => "#198754",
+                        MilestoneColor.Red => "#dc3545",
+                        _ => "#0d6efd"
+                    };
+                    <div class="timeline-milestone" style="left: @F(msPos)%; --ms-color: @msColor;"
+                         title="@ms.Label (@ms.Date.ToString("yyyy-MM-dd"))">
+                        <div class="milestone-line"></div>
+                        <span class="milestone-label">@ms.Label</span>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Rows grouped by person -->
+        @foreach (var group in Model.StepGroups)
+        {
+            var laneCount = Model.GroupLaneCount[group.PersonName];
+            var trackHeight = laneCount * SynCraft.Pages.Instances.ViewModel.LaneHeight;
+
+            <div class="timeline-row">
+                <div class="timeline-label" title="@group.PersonName">
+                    <strong>@group.PersonName</strong>
+                    <small class="d-block text-muted">@group.Steps.Count step(s)</small>
+                </div>
+                <div class="timeline-track" style="height: @(trackHeight)px;">
+                    <!-- Today line spanning this row -->
+                    <div class="timeline-today" style="left: @F(todayPos)%;"><div class="today-line"></div></div>
+                    <!-- Target line spanning this row -->
+                    <div class="timeline-target" style="left: @F(targetPos)%;"><div class="target-line"></div></div>
+                    <!-- Milestone lines spanning this row -->
+                    @foreach (var ms in Model.Milestones)
+                    {
+                        var msPos = Model.GetPosition(ms.Date);
+                        var msColor = ms.Color switch
+                        {
+                            MilestoneColor.Green => "#198754",
+                            MilestoneColor.Red => "#dc3545",
+                            _ => "#0d6efd"
+                        };
+                        <div class="timeline-milestone" style="left: @F(msPos)%; --ms-color: @msColor;"><div class="milestone-line"></div></div>
+                    }
+                    @foreach (var step in group.Steps)
+                    {
+                        var lane = Model.StepLanes[step.Id];
+                        var deadlinePos = Model.GetPosition(step.Deadline);
+                        var stepClass = step.State switch
+                        {
+                            StepState.Done => "step-done",
+                            StepState.Cancelled => "step-cancelled",
+                            StepState.InProgress => step.IsAtRisk ? "step-inrisk" : "step-inprogress",
+                            StepState.InRisk => "step-inrisk",
+                            _ => step.IsDelayed ? "step-delayed" : step.ShouldHaveStarted ? "step-warning" : "step-notstarted"
+                        };
+
+                        @* Duration bar (extends left from the pin) *@
+                        if (step.MinDurationDays > 0)
+                        {
+                            var startPos = Model.GetPosition(step.MustStartBy);
+                            var barWidth = deadlinePos - startPos;
+                            var barTop = lane * SynCraft.Pages.Instances.ViewModel.LaneHeight + 42;
+                            <div class="pin-duration @stepClass"
+                                 style="left: @F(startPos)%; width: @F(barWidth)%; top: @(barTop)px;"></div>
+                        }
+
+                        @* Pin marker at the deadline *@
+                        <div class="timeline-pin @stepClass"
+                             style="left: @F(deadlinePos)%; top: @(lane * SynCraft.Pages.Instances.ViewModel.LaneHeight)px;"
+                             data-step-id="@step.Id"
+                             data-bs-toggle="modal" data-bs-target="#stepModal"
+                             title="@step.Name – @step.Deadline.ToString("yyyy-MM-dd")">
+                            <div class="pin-sign">
+                                <span class="badge category-@step.Category.ToString().ToLower()">@step.Category</span>
+                                <span class="pin-name">@step.Name</span>
+                                @if (step.IsDelayed)
+                                {
+                                    <span class="badge bg-danger">!</span>
+                                }
+                            </div>
+                            <div class="pin-stem"></div>
+                            <div class="pin-dot"></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Step details cards -->
+    <h4 class="mt-4 mb-3">Steps Detail</h4>
+    <div class="row">
+        @foreach (var step in Model.Instance.Steps.OrderBy(s => s.Deadline))
+        {
+            var cardBorder = step.State switch
+            {
+                StepState.Done => "border-success",
+                StepState.Cancelled => "border-secondary",
+                StepState.InRisk => "border-danger",
+                StepState.InProgress => step.IsAtRisk ? "border-danger" : "border-info",
+                _ => step.IsDelayed ? "border-danger" : ""
+            };
+
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card @cardBorder h-100" id="step-card-@step.Id">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2">
+                        <span>
+                            <span class="badge category-@step.Category.ToString().ToLower()">@step.Category</span>
+                            <strong class="ms-1">@step.Name</strong>
+                        </span>
+                        @{
+                            var stateBadge = step.State switch
+                            {
+                                StepState.Done => "bg-success",
+                                StepState.Cancelled => "bg-secondary",
+                                StepState.InProgress => step.IsAtRisk ? "bg-danger" : "bg-info",
+                                StepState.InRisk => "bg-danger",
+                                _ => step.IsDelayed ? "bg-danger" : "bg-light text-dark"
+                            };
+                        }
+                        <span class="badge @stateBadge">
+                            @(step.IsDelayed && step.State == StepState.NotStarted ? "DELAYED" : step.IsAtRisk ? "AT RISK" : step.State.ToString())
+                        </span>
+                    </div>
+                    <div class="card-body py-2">
+                        @if (!string.IsNullOrWhiteSpace(step.Description))
+                        {
+                            <p class="card-text small mb-2">@step.Description</p>
+                        }
+                        <div class="small">
+                            <strong>Responsible:</strong> @(step.ResponsiblePerson?.Name ?? "Unassigned")<br />
+                            <strong>Deadline:</strong> @step.Deadline.ToString("yyyy-MM-dd")
+                            @if (step.MinDurationDays > 0)
+                            {
+                                <br /><strong>Must start by:</strong> @step.MustStartBy.ToString("yyyy-MM-dd")
+                                <span class="text-muted">(@step.MinDurationDays day duration)</span>
+                            }
+                        </div>
+                    </div>
+                    @if (Model.Instance.Status == ProcessStatus.Active)
+                    {
+                        <div class="card-footer py-2">
+                            <form method="post" asp-page-handler="UpdateStep"
+                                  asp-route-id="@Model.Instance.Id"
+                                  class="d-flex gap-1 flex-wrap">
+                                <input type="hidden" name="stepId" value="@step.Id" />
+                                @foreach (var state in Enum.GetValues<StepState>())
+                                {
+                                    if (state == step.State) continue;
+                                    var btnClass = state switch
+                                    {
+                                        StepState.Done => "btn-outline-success",
+                                        StepState.Cancelled => "btn-outline-secondary",
+                                        StepState.InProgress => "btn-outline-info",
+                                        StepState.InRisk => "btn-outline-danger",
+                                        _ => "btn-outline-warning"
+                                    };
+                                    <button type="submit" name="newState" value="@state"
+                                            class="btn btn-sm @btnClass">@state</button>
+                                }
+                            </form>
+                        </div>
+                    }
+
+                    <!-- Comments section -->
+                    @{
+                        var comments = step.Comments.OrderBy(c => c.CreatedDate).ToList();
+                    }
+                    <div class="card-body border-top py-2">
+                        <small class="text-muted fw-bold">Comments (@comments.Count)</small>
+                        @if (comments.Count > 0)
+                        {
+                            <div class="mt-1">
+                                @foreach (var comment in comments)
+                                {
+                                    <div class="comment mb-2 p-2 bg-light rounded">
+                                        <div class="d-flex justify-content-between">
+                                            <small class="fw-bold">@comment.Author</small>
+                                            <small class="text-muted">@comment.CreatedDate.ToString("yyyy-MM-dd HH:mm")</small>
+                                        </div>
+                                        <small>@comment.Text</small>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        <form method="post" asp-page-handler="AddComment"
+                              asp-route-id="@Model.Instance.Id" class="mt-2">
+                            <input type="hidden" name="stepId" value="@step.Id" />
+                            <div class="input-group input-group-sm">
+                                <input type="text" name="author" class="form-control" placeholder="Name" style="max-width: 100px;" required />
+                                <input type="text" name="text" class="form-control" placeholder="Add a comment..." required />
+                                <button type="submit" class="btn btn-sm btn-outline-primary">Post</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- Delete Process Confirmation Modal -->
+<div class="modal fade" id="deleteProcessModal" tabindex="-1" aria-labelledby="deleteProcessModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteProcessModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the process instance <strong>@Model.Instance.Name</strong>?</p>
+                <p class="text-danger mb-0">All steps and comments will be permanently removed. This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" asp-page-handler="DeleteProcess" asp-route-id="@Model.Instance.Id">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Push Deadline Modal -->
+@if (Model.Instance.Status == ProcessStatus.Active)
+{
+    var affectedSteps = Model.Instance.Steps
+        .Where(s => s.State != StepState.Done && s.State != StepState.Cancelled)
+        .OrderBy(s => s.Deadline)
+        .ToList();
+
+    <div class="modal fade" id="pushDeadlineModal" tabindex="-1" aria-labelledby="pushDeadlineModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form method="post" asp-page-handler="PushDeadline" asp-route-id="@Model.Instance.Id">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="pushDeadlineModalLabel">Push Deadline</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Push the target date and all active steps forward by a number of days.</p>
+                        <p class="small text-muted mb-3">
+                            Current target: <strong>@Model.Instance.TargetDate.ToString("yyyy-MM-dd")</strong>.
+                            A milestone will be created at the original target date.
+                        </p>
+                        <div class="mb-3">
+                            <label for="pushDaysInput" class="form-label">Days to push</label>
+                            <input type="number" class="form-control" id="pushDaysInput" name="pushDays"
+                                   min="1" value="7" required />
+                            <div class="form-text">
+                                New target date: <strong id="newTargetDatePreview"></strong>
+                            </div>
+                        </div>
+                        <h6>Affected steps (@affectedSteps.Count)</h6>
+                        @if (affectedSteps.Count > 0)
+                        {
+                            <div style="max-height: 200px; overflow-y: auto;">
+                                <table class="table table-sm table-bordered mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>Step</th>
+                                            <th>State</th>
+                                            <th>Current Deadline</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var step in affectedSteps)
+                                        {
+                                            <tr>
+                                                <td>
+                                                    <span class="badge category-@step.Category.ToString().ToLower() me-1">@step.Category</span>
+                                                    @step.Name
+                                                </td>
+                                                <td>
+                                                    @{
+                                                        var pushStateBadge = step.State switch
+                                                        {
+                                                            StepState.InProgress => step.IsAtRisk ? "bg-danger" : "bg-info",
+                                                            StepState.InRisk => "bg-danger",
+                                                            _ => step.IsDelayed ? "bg-danger" : "bg-light text-dark"
+                                                        };
+                                                    }
+                                                    <span class="badge @pushStateBadge">@step.State</span>
+                                                </td>
+                                                <td>@step.Deadline.ToString("yyyy-MM-dd")</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-muted small mb-0">No active steps to push. Only the target date will be moved.</p>
+                        }
+                        @if (Model.Instance.Steps.Any(s => s.State == StepState.Done || s.State == StepState.Cancelled))
+                        {
+                            <p class="small text-muted mt-2 mb-0">
+                                @Model.Instance.Steps.Count(s => s.State == StepState.Done || s.State == StepState.Cancelled)
+                                completed/cancelled step(s) will keep their original deadlines.
+                            </p>
+                        }
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-warning">Push Deadline</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Step Detail Modal -->
+<div class="modal fade" id="stepModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <span id="modalCategoryBadge" class="badge me-2"></span>
+                    <span id="modalStepName"></span>
+                    <span id="modalStateBadge" class="badge ms-2"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalDescription" class="mb-3"></div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Responsible</dt>
+                            <dd class="col-sm-7" id="modalResponsible"></dd>
+                            <dt class="col-sm-5">Deadline</dt>
+                            <dd class="col-sm-7" id="modalDeadline"></dd>
+                            <dt class="col-sm-5" id="modalMustStartLabel">Must Start By</dt>
+                            <dd class="col-sm-7" id="modalMustStart"></dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">Day Offset</dt>
+                            <dd class="col-sm-7" id="modalDayOffset"></dd>
+                            <dt class="col-sm-5">Duration</dt>
+                            <dd class="col-sm-7" id="modalDuration"></dd>
+                        </dl>
+                    </div>
+                </div>
+
+                @if (Model.Instance.Status == ProcessStatus.Active)
+                {
+                    <h6>Change State</h6>
+                    <div id="modalStateButtons" class="d-flex gap-1 flex-wrap mb-3"></div>
+                }
+
+                <h6>Comments <small class="text-muted" id="modalCommentCount"></small></h6>
+                <div id="modalComments" class="mb-2" style="max-height: 250px; overflow-y: auto;"></div>
+
+                @if (Model.Instance.Status == ProcessStatus.Active)
+                {
+                    <form method="post" asp-page-handler="AddComment" asp-route-id="@Model.Instance.Id" id="modalCommentForm">
+                        <input type="hidden" name="stepId" id="modalCommentStepId" />
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="author" class="form-control" placeholder="Name" style="max-width: 120px;" required />
+                            <input type="text" name="text" class="form-control" placeholder="Add a comment..." required />
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Post</button>
+                        </div>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden state change form -->
+<form method="post" asp-page-handler="UpdateStep" asp-route-id="@Model.Instance.Id" id="modalStateForm" class="d-none">
+    <input type="hidden" name="stepId" id="modalStateStepId" />
+    <input type="hidden" name="newState" id="modalStateValue" />
+</form>
+
+<!-- Hidden comment templates -->
+@foreach (var step in Model.Instance.Steps)
+{
+    <template id="step-comments-@step.Id">
+        @{
+            var tplComments = step.Comments.OrderBy(c => c.CreatedDate).ToList();
+        }
+        @if (tplComments.Count > 0)
+        {
+            @foreach (var comment in tplComments)
+            {
+                <div class="comment mb-2 p-2 bg-light rounded">
+                    <div class="d-flex justify-content-between">
+                        <small class="fw-bold">@comment.Author</small>
+                        <small class="text-muted">@comment.CreatedDate.ToString("yyyy-MM-dd HH:mm")</small>
+                    </div>
+                    <small>@comment.Text</small>
+                </div>
+            }
+        }
+        else
+        {
+            <p class="text-muted small mb-0">No comments yet.</p>
+        }
+    </template>
+}
+
+@{
+    var stepsJson = Model.Instance.Steps.ToDictionary(s => s.Id, s => new
+    {
+        name = s.Name,
+        description = s.Description ?? "",
+        category = s.Category.ToString(),
+        categoryClass = $"category-{s.Category.ToString().ToLower()}",
+        responsible = s.ResponsiblePerson?.Name ?? "Unassigned",
+        deadline = s.Deadline.ToString("yyyy-MM-dd"),
+        mustStart = s.MinDurationDays > 0 ? s.MustStartBy.ToString("yyyy-MM-dd") : "",
+        duration = s.MinDurationDays,
+        dayOffset = s.DayOffset < 0
+            ? $"{Math.Abs(s.DayOffset)} days before target"
+            : s.DayOffset == 0
+                ? "On target date"
+                : $"{s.DayOffset} days after target",
+        state = s.State.ToString(),
+        stateText = s.IsDelayed && s.State == StepState.NotStarted
+            ? "DELAYED"
+            : s.IsAtRisk
+                ? "AT RISK"
+                : s.State.ToString(),
+        stateBadge = s.State switch
+        {
+            StepState.Done => "bg-success",
+            StepState.Cancelled => "bg-secondary",
+            StepState.InProgress => s.IsAtRisk ? "bg-danger" : "bg-info",
+            StepState.InRisk => "bg-danger",
+            _ => s.IsDelayed ? "bg-danger" : "bg-light text-dark"
+        },
+        commentCount = s.Comments.Count
+    });
+}
+
+@section Scripts {
+    <script>
+        var stepsData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(stepsJson));
+
+        // Push deadline – preview new target date
+        (function () {
+            var input = document.getElementById('pushDaysInput');
+            var preview = document.getElementById('newTargetDatePreview');
+            if (input && preview) {
+                var targetDate = new Date('@Model.Instance.TargetDate.ToString("yyyy-MM-dd")');
+                function updatePreview() {
+                    var days = parseInt(input.value) || 0;
+                    var d = new Date(targetDate);
+                    d.setDate(d.getDate() + days);
+                    preview.textContent = d.toISOString().split('T')[0];
+                }
+                input.addEventListener('input', updatePreview);
+                updatePreview();
+            }
+        })();
+
+        var stepModal = document.getElementById('stepModal');
+        stepModal.addEventListener('show.bs.modal', function (event) {
+            var pin = event.relatedTarget;
+            if (!pin) return;
+            var stepId = pin.getAttribute('data-step-id');
+            var data = stepsData[stepId];
+            if (!data) return;
+
+            // Title
+            document.getElementById('modalStepName').textContent = data.name;
+            var catBadge = document.getElementById('modalCategoryBadge');
+            catBadge.textContent = data.category;
+            catBadge.className = 'badge me-2 ' + data.categoryClass;
+            var stateBadge = document.getElementById('modalStateBadge');
+            stateBadge.textContent = data.stateText;
+            stateBadge.className = 'badge ms-2 ' + data.stateBadge;
+
+            // Description
+            var descEl = document.getElementById('modalDescription');
+            if (data.description) {
+                var d = document.createElement('div');
+                d.textContent = data.description;
+                descEl.innerHTML = '<p class="card-text small text-muted mb-0">' + d.innerHTML + '</p>';
+            } else {
+                descEl.innerHTML = '';
+            }
+
+            // Details
+            document.getElementById('modalResponsible').textContent = data.responsible;
+            document.getElementById('modalDeadline').textContent = data.deadline;
+            var mustStartLabel = document.getElementById('modalMustStartLabel');
+            var mustStartVal = document.getElementById('modalMustStart');
+            if (data.mustStart) {
+                mustStartLabel.style.display = '';
+                mustStartVal.style.display = '';
+                mustStartVal.textContent = data.mustStart + ' (' + data.duration + ' day duration)';
+            } else {
+                mustStartLabel.style.display = 'none';
+                mustStartVal.style.display = 'none';
+            }
+            document.getElementById('modalDayOffset').textContent = data.dayOffset;
+            document.getElementById('modalDuration').textContent = data.duration > 0 ? data.duration + ' days' : '-';
+
+            // State change buttons
+            var stateButtonsEl = document.getElementById('modalStateButtons');
+            if (stateButtonsEl) {
+                stateButtonsEl.innerHTML = '';
+                var states = ['NotStarted', 'InProgress', 'InRisk', 'Done', 'Cancelled'];
+                var btnClasses = {
+                    'NotStarted': 'btn-outline-warning',
+                    'InProgress': 'btn-outline-info',
+                    'InRisk': 'btn-outline-danger',
+                    'Done': 'btn-outline-success',
+                    'Cancelled': 'btn-outline-secondary'
+                };
+                states.forEach(function (state) {
+                    if (state !== data.state) {
+                        var btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'btn btn-sm ' + btnClasses[state];
+                        btn.textContent = state;
+                        btn.addEventListener('click', function () {
+                            document.getElementById('modalStateStepId').value = stepId;
+                            document.getElementById('modalStateValue').value = state;
+                            document.getElementById('modalStateForm').submit();
+                        });
+                        stateButtonsEl.appendChild(btn);
+                    }
+                });
+            }
+
+            // Comments
+            var commentsEl = document.getElementById('modalComments');
+            commentsEl.innerHTML = '';
+            var tpl = document.getElementById('step-comments-' + stepId);
+            if (tpl) {
+                commentsEl.appendChild(tpl.content.cloneNode(true));
+            }
+            document.getElementById('modalCommentCount').textContent = '(' + data.commentCount + ')';
+
+            // Comment form
+            var commentStepId = document.getElementById('modalCommentStepId');
+            if (commentStepId) {
+                commentStepId.value = stepId;
+            }
+        });
+    </script>
+}

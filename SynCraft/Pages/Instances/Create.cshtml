@@ -1,0 +1,66 @@
+@page
+@model SynCraft.Pages.Instances.CreateModel
+@{
+    ViewData["Title"] = "Launch New Process";
+}
+
+<h2>Launch New Process</h2>
+
+@if (Model.TemplateOptions.Count == 0)
+{
+    <div class="alert alert-warning">
+        No process templates available. <a asp-page="/Templates/Create">Create a template first</a>.
+    </div>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-6">
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+                <div class="mb-3">
+                    <label class="form-label">Process Template</label>
+                    <select asp-for="SelectedTemplateId" class="form-select"
+                            asp-items="Model.TemplateOptions">
+                        <option value="">-- Select Template --</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label asp-for="InstanceName" class="form-label">Instance Name</label>
+                    <input asp-for="InstanceName" class="form-control" placeholder="Leave empty for auto-generated name" />
+                </div>
+                <div class="mb-3">
+                    <label asp-for="TargetDate" class="form-label">Target Date</label>
+                    <input asp-for="TargetDate" class="form-control" type="date" />
+                    <div id="targetDateComment" class="form-text text-info fw-semibold" style="display:none;"></div>
+                </div>
+                <button type="submit" class="btn btn-primary">Launch Process</button>
+                <a asp-page="Index" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+}
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            var comments = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.TemplateTargetDateComments));
+            var select = document.getElementById('SelectedTemplateId');
+            var commentEl = document.getElementById('targetDateComment');
+
+            function updateComment() {
+                var id = select.value;
+                if (id && comments[id]) {
+                    commentEl.textContent = comments[id];
+                    commentEl.style.display = '';
+                } else {
+                    commentEl.style.display = 'none';
+                }
+            }
+
+            select.addEventListener('change', updateComment);
+            updateComment();
+        })();
+    </script>
+}

@@ -1,0 +1,37 @@
+@page
+@model SynCraft.Pages.Templates.CreateModel
+@{
+    ViewData["Title"] = "New Process Template";
+}
+
+<h2>New Process Template</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="mb-3">
+                <label asp-for="Template.Name" class="form-label"></label>
+                <input asp-for="Template.Name" class="form-control" />
+                <span asp-validation-for="Template.Name" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Template.Description" class="form-label"></label>
+                <textarea asp-for="Template.Description" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Template.Description" class="text-danger"></span>
+            </div>
+            <div class="mb-3">
+                <label asp-for="Template.TargetDateComment" class="form-label"></label>
+                <input asp-for="Template.TargetDateComment" class="form-control" placeholder="e.g. 'Date of the event'" />
+                <span asp-validation-for="Template.TargetDateComment" class="text-danger"></span>
+                <div class="form-text">Optional hint shown next to the Target Date field when launching a new instance.</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Create & Add Steps</button>
+            <a asp-page="Index" class="btn btn-secondary">Cancel</a>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

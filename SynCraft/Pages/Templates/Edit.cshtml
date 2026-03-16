@@ -1,0 +1,296 @@
+@page "{id:int}"
+@model SynCraft.Pages.Templates.EditModel
+@using SynCraft.Models
+@{
+    ViewData["Title"] = "Edit Template - " + Model.Template.Name;
+}
+
+<h2>Edit Template: @Model.Template.Name</h2>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Template Details</div>
+            <div class="card-body">
+                <form method="post" asp-page-handler="UpdateTemplate">
+                    <input type="hidden" asp-for="Template.Id" />
+                    <div class="mb-3">
+                        <label asp-for="Template.Name" class="form-label"></label>
+                        <input asp-for="Template.Name" class="form-control" />
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Template.Description" class="form-label"></label>
+                        <textarea asp-for="Template.Description" class="form-control" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Template.TargetDateComment" class="form-label"></label>
+                        <input asp-for="Template.TargetDateComment" class="form-control" placeholder="e.g. 'Date of the event'" />
+                        <div class="form-text">Optional hint shown next to the Target Date field when launching a new instance.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Update</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Steps (@Model.Template.Steps.Count)</span>
+            </div>
+            <div class="card-body">
+                @if (Model.Template.Steps.Count > 0)
+                {
+                    <table class="table table-sm table-hover mb-4">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Category</th>
+                                <th>Responsible</th>
+                                <th>Day Offset</th>
+                                <th>Min Duration</th>
+                                <th>Description</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var step in Model.Template.Steps.OrderBy(s => s.DayOffset))
+                            {
+                                <!-- Display row -->
+                                <tr id="display-step-@step.Id">
+                                    <td>@step.Name</td>
+                                    <td><span class="badge category-@step.Category.ToString().ToLower()">@step.Category</span></td>
+                                    <td>@(step.ResponsiblePerson?.Name ?? "Unassigned")</td>
+                                    <td>
+                                        @if (step.DayOffset < 0)
+                                        {
+                                            <span>@Math.Abs(step.DayOffset) days before</span>
+                                        }
+                                        else if (step.DayOffset == 0)
+                                        {
+                                            <span>On target date</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@step.DayOffset days after</span>
+                                        }
+                                    </td>
+                                    <td>@(step.MinDurationDays > 0 ? step.MinDurationDays + " days" : "-")</td>
+                                    <td class="text-muted">@step.Description</td>
+                                    <td class="text-nowrap">
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                onclick="toggleEditStep(@step.Id)">✎</button>
+                                        <form method="post" asp-page-handler="DeleteStep" class="d-inline">
+                                            <input type="hidden" name="stepId" value="@step.Id" />
+                                            <input type="hidden" asp-for="Template.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                    onclick="return confirm('Delete this step?')">✕</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <!-- Edit row (hidden by default) -->
+                                <tr id="edit-step-@step.Id" style="display:none;">
+                                    <form method="post" asp-page-handler="UpdateStep">
+                                        <input type="hidden" asp-for="Template.Id" />
+                                        <input type="hidden" name="EditStep.Id" value="@step.Id" />
+                                        <td>
+                                            <input name="EditStep.Name" value="@step.Name" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <select name="EditStep.Category" class="form-select form-select-sm">
+                                                @foreach (var cat in Enum.GetValues<StepCategory>())
+                                                {
+                                                    <option value="@cat" selected="@(cat == step.Category)">@cat</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <select name="EditStep.ResponsiblePersonId" class="form-select form-select-sm">
+                                                @foreach (var opt in Model.PersonOptions)
+                                                {
+                                                    <option value="@opt.Value" selected="@(opt.Value == (step.ResponsiblePersonId?.ToString() ?? ""))">@opt.Text</option>
+                                                }
+                                            </select>
+                                        </td>
+                                        <td>
+                                            <input name="EditStep.DayOffset" value="@step.DayOffset" type="number" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <input name="EditStep.MinDurationDays" value="@step.MinDurationDays" type="number" class="form-control form-control-sm" />
+                                        </td>
+                                        <td>
+                                            <input name="EditStep.Description" value="@step.Description" class="form-control form-control-sm" />
+                                        </td>
+                                        <td class="text-nowrap">
+                                            <button type="submit" class="btn btn-sm btn-success">✓</button>
+                                            <button type="button" class="btn btn-sm btn-secondary"
+                                                    onclick="toggleEditStep(@step.Id)">✕</button>
+                                        </td>
+                                    </form>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted mb-3">No steps yet. Add the first step below.</p>
+                }
+
+                <h6>Add Step</h6>
+                <form method="post" asp-page-handler="AddStep">
+                    <input type="hidden" asp-for="Template.Id" />
+                    <div class="row g-2 mb-1">
+                        <div class="col-md-3"><label class="form-label form-label-sm mb-0">Name</label></div>
+                        <div class="col-md-2"><label class="form-label form-label-sm mb-0">Category</label></div>
+                        <div class="col-md-2"><label class="form-label form-label-sm mb-0">Responsible</label></div>
+                        <div class="col-md-1"><label class="form-label form-label-sm mb-0">Day Offset</label></div>
+                        <div class="col-md-1"><label class="form-label form-label-sm mb-0">Duration</label></div>
+                        <div class="col-md-2"><label class="form-label form-label-sm mb-0">Description</label></div>
+                        <div class="col-md-1"></div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <input asp-for="NewStep.Name" class="form-control form-control-sm" placeholder="Step name" />
+                        </div>
+                        <div class="col-md-2">
+                            <select asp-for="NewStep.Category" class="form-select form-select-sm"
+                                    asp-items="@(new SelectList(Enum.GetValues<StepCategory>()))">
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <select asp-for="NewStep.ResponsiblePersonId" class="form-select form-select-sm"
+                                    asp-items="Model.PersonOptions">
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <input asp-for="NewStep.DayOffset" class="form-control form-control-sm" placeholder="e.g. -7" title="Day offset (negative = before target)" />
+                        </div>
+                        <div class="col-md-1">
+                            <input asp-for="NewStep.MinDurationDays" class="form-control form-control-sm" placeholder="e.g. 3" title="Min duration in days" />
+                        </div>
+                        <div class="col-md-2">
+                            <input asp-for="NewStep.Description" class="form-control form-control-sm" placeholder="Short description" />
+                        </div>
+                        <div class="col-md-1">
+                            <button type="submit" class="btn btn-sm btn-success w-100">Add</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>Milestones (@Model.Template.Milestones.Count)</span>
+            </div>
+            <div class="card-body">
+                @if (Model.Template.Milestones.Count > 0)
+                {
+                    <table class="table table-sm table-hover mb-4">
+                        <thead>
+                            <tr>
+                                <th>Label</th>
+                                <th>Day Offset</th>
+                                <th>Color</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ms in Model.Template.Milestones.OrderBy(m => m.DayOffset))
+                            {
+                                <tr>
+                                    <td>@ms.Label</td>
+                                    <td>
+                                        @if (ms.DayOffset < 0)
+                                        {
+                                            <span>@Math.Abs(ms.DayOffset) days before</span>
+                                        }
+                                        else if (ms.DayOffset == 0)
+                                        {
+                                            <span>On target date</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@ms.DayOffset days after</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <span class="badge" style="background-color: @(ms.Color switch { MilestoneColor.Green => "#198754", MilestoneColor.Red => "#dc3545", _ => "#0d6efd" });">
+                                            @ms.Color
+                                        </span>
+                                    </td>
+                                    <td class="text-nowrap">
+                                        <form method="post" asp-page-handler="DeleteMilestone" class="d-inline">
+                                            <input type="hidden" name="milestoneId" value="@ms.Id" />
+                                            <input type="hidden" asp-for="Template.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                    onclick="return confirm('Delete this milestone?')">✕</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted mb-3">No milestones yet. Add the first milestone below.</p>
+                }
+
+                <h6>Add Milestone</h6>
+                <form method="post" asp-page-handler="AddMilestone">
+                    <input type="hidden" asp-for="Template.Id" />
+                    <div class="row g-2 mb-1">
+                        <div class="col-md-4"><label class="form-label form-label-sm mb-0">Label</label></div>
+                        <div class="col-md-3"><label class="form-label form-label-sm mb-0">Day Offset</label></div>
+                        <div class="col-md-3"><label class="form-label form-label-sm mb-0">Color</label></div>
+                        <div class="col-md-2"></div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-4">
+                            <input asp-for="NewMilestone.Label" class="form-control form-control-sm" placeholder="Milestone label" />
+                        </div>
+                        <div class="col-md-3">
+                            <input asp-for="NewMilestone.DayOffset" class="form-control form-control-sm" placeholder="e.g. -14" title="Day offset (negative = before target)" />
+                        </div>
+                        <div class="col-md-3">
+                            <select asp-for="NewMilestone.Color" class="form-select form-select-sm"
+                                    asp-items="@(new SelectList(Enum.GetValues<MilestoneColor>()))">
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-sm btn-success w-100">Add</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a asp-page="Index" class="btn btn-secondary">← Back to Templates</a>
+</div>
+
+@section Scripts {
+    <script>
+        function toggleEditStep(stepId) {
+            var display = document.getElementById('display-step-' + stepId);
+            var edit = document.getElementById('edit-step-' + stepId);
+            if (edit.style.display === 'none') {
+                edit.style.display = '';
+                display.style.display = 'none';
+            } else {
+                edit.style.display = 'none';
+                display.style.display = '';
+            }
+        }
+    </script>
+}

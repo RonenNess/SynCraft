@@ -1,0 +1,68 @@
+@page
+@model SynCraft.Pages.Data.IndexModel
+@{
+    ViewData["Title"] = "Export / Import";
+}
+
+<h2>Export / Import Data</h2>
+
+@if (!string.IsNullOrEmpty(Model.StatusMessage))
+{
+    var alertClass = Model.StatusMessage.StartsWith("Error") ? "alert-danger" : "alert-success";
+    <div class="alert @alertClass alert-dismissible fade show" role="alert">
+        @Model.StatusMessage
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+}
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <strong>📤 Export</strong>
+            </div>
+            <div class="card-body">
+                <p>Download all data as a JSON file. This includes:</p>
+                <ul class="mb-3">
+                    <li><strong>@Model.PersonCount</strong> person(s)</li>
+                    <li><strong>@Model.TemplateCount</strong> template(s) (with steps &amp; milestones)</li>
+                    <li><strong>@Model.InstanceCount</strong> process instance(s) (with steps &amp; comments)</li>
+                </ul>
+                <form method="post" asp-page-handler="Export">
+                    <button type="submit" class="btn btn-primary">
+                        📥 Download JSON
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header">
+                <strong>📥 Import</strong>
+            </div>
+            <div class="card-body">
+                <p>Upload a previously exported JSON file to import data.</p>
+                <ul class="small text-muted mb-3">
+                    <li>Persons with the same name will be <strong>skipped</strong> (not duplicated).</li>
+                    <li>Templates with the same name will be <strong>skipped</strong>.</li>
+                    <li>Instances are imported if their template exists (by name).</li>
+                </ul>
+                <form method="post" asp-page-handler="Import" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <input type="file" name="importFile" class="form-control" accept=".json" required />
+                    </div>
+                    <button type="submit" class="btn btn-warning"
+                            onclick="return confirm('This will add new data from the file. Existing records with the same name are skipped. Continue?')">
+                        📤 Import JSON
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-2">
+    <a asp-page="/Index" class="btn btn-outline-secondary">← Back to Dashboard</a>
+</div>

@@ -1,0 +1,114 @@
+@page
+@model SynCraft.Pages.Instances.IndexModel
+@using SynCraft.Models
+@{
+    ViewData["Title"] = "Process Instances";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Process Instances</h2>
+    <a asp-page="Create" class="btn btn-primary">+ Launch New Process</a>
+</div>
+
+@if (Model.Instances.Count == 0)
+{
+    <div class="alert alert-info">No process instances yet. Launch one from a template.</div>
+}
+else
+{
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Template</th>
+                <th>Target Date</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var instance in Model.Instances)
+            {
+                var done = instance.Steps.Count(s => s.State == StepState.Done || s.State == StepState.Cancelled);
+                var total = instance.Steps.Count;
+                var pct = total > 0 ? (int)(100.0 * done / total) : 0;
+                var delayed = instance.Steps.Any(s =>
+                    DateTime.Today > instance.TargetDate.AddDays(s.DayOffset).Date
+                    && s.State != StepState.Done && s.State != StepState.Cancelled);
+
+                <tr class="@(delayed ? "table-warning" : "")">
+                    <td>
+                        <a asp-page="View" asp-route-id="@instance.Id" class="fw-bold text-decoration-none">
+                            @instance.Name
+                        </a>
+                    </td>
+                    <td>@(instance.ProcessTemplate?.Name ?? "Unknown")</td>
+                    <td>@instance.TargetDate.ToString("yyyy-MM-dd")</td>
+                    <td>
+                        @if (instance.Status == ProcessStatus.Completed)
+                        {
+                            <span class="badge bg-success">Completed</span>
+                        }
+                        else if (delayed)
+                        {
+                            <span class="badge bg-warning text-dark">Active - Delayed</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-primary">Active</span>
+                        }
+                    </td>
+                    <td>
+                        <div class="progress" style="height: 20px; min-width: 100px;">
+                            <div class="progress-bar @(pct == 100 ? "bg-success" : "")"
+                                 style="width: @pct%;">@done/@total</div>
+                        </div>
+                    </td>
+                    <td>
+                        <a asp-page="View" asp-route-id="@instance.Id" class="btn btn-sm btn-outline-primary">View Timeline</a>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                data-delete-id="@instance.Id"
+                                data-delete-name="@instance.Name">
+                            Delete
+                        </button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the process instance <strong id="deleteInstanceName"></strong>?</p>
+                <p class="text-danger mb-0">All steps and comments will be permanently removed. This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" asp-page-handler="Delete" id="deleteForm">
+                    <input type="hidden" name="id" id="deleteId" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('deleteModal').addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            document.getElementById('deleteId').value = button.getAttribute('data-delete-id');
+            document.getElementById('deleteInstanceName').textContent = button.getAttribute('data-delete-name');
+        });
+    </script>
+}

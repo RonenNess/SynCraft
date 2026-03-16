@@ -1,0 +1,140 @@
+﻿@page
+@model IndexModel
+@using SynCraft.Models
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<h2 class="mb-3">Dashboard</h2>
+
+<!-- Summary cards -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center border-primary">
+            <div class="card-body">
+                <h3 class="card-title text-primary">@Model.TotalActive</h3>
+                <p class="card-text">Active Processes</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <h3 class="card-title text-success">@Model.TotalCompleted</h3>
+                <p class="card-text">Completed</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="card-title">@Model.TotalTemplates</h3>
+                <p class="card-text">Templates</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h3 class="card-title">@Model.TotalPersons</h3>
+                <p class="card-text">Persons</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Running processes grouped by type -->
+@if (Model.ProcessGroups.Count == 0)
+{
+    <div class="alert alert-info">
+        No processes yet. <a asp-page="/Instances/Create">Launch your first process</a> or
+        <a asp-page="/Templates/Create">create a template</a> to get started.
+    </div>
+}
+else
+{
+    @foreach (var group in Model.ProcessGroups)
+    {
+        <div class="card mb-3">
+            <div class="card-header">
+                <strong>@group.TemplateName</strong>
+                <span class="badge bg-secondary ms-2">@group.Instances.Count instance(s)</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Target Date</th>
+                            <th>Status</th>
+                            <th>Progress</th>
+                            <th>Current Steps</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var instance in group.Instances)
+                        {
+                            var done = instance.Steps.Count(s => s.State == StepState.Done || s.State == StepState.Cancelled);
+                            var total = instance.Steps.Count;
+                            var pct = total > 0 ? (int)(100.0 * done / total) : 0;
+                            var inProgress = instance.Steps.Where(s => s.State == StepState.InProgress).ToList();
+                            var delayed = instance.Steps.Any(s =>
+                                DateTime.Today > instance.TargetDate.AddDays(s.DayOffset).Date
+                                && s.State != StepState.Done && s.State != StepState.Cancelled);
+
+                            <tr class="@(delayed ? "table-warning" : "")">
+                                <td>
+                                    <a asp-page="/Instances/View" asp-route-id="@instance.Id"
+                                       class="fw-bold text-decoration-none">@instance.Name</a>
+                                </td>
+                                <td>@instance.TargetDate.ToString("yyyy-MM-dd")</td>
+                                <td>
+                                    @if (instance.Status == ProcessStatus.Completed)
+                                    {
+                                        <span class="badge bg-success">Completed</span>
+                                    }
+                                    else if (delayed)
+                                    {
+                                        <span class="badge bg-warning text-dark">Delayed</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-primary">Active</span>
+                                    }
+                                </td>
+                                <td style="min-width: 120px;">
+                                    <div class="progress" style="height: 18px;">
+                                        <div class="progress-bar @(pct == 100 ? "bg-success" : "")"
+                                             style="width: @pct%;">@done/@total</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    @if (inProgress.Count > 0)
+                                    {
+                                        @foreach (var s in inProgress.Take(3))
+                                        {
+                                            <span class="badge bg-info me-1">@s.Name</span>
+                                        }
+                                        @if (inProgress.Count > 3)
+                                        {
+                                            <span class="text-muted">+@(inProgress.Count - 3) more</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">—</span>
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-page="/Instances/View" asp-route-id="@instance.Id"
+                                       class="btn btn-sm btn-outline-primary">View</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}

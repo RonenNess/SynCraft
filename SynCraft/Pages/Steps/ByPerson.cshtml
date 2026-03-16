@@ -1,0 +1,99 @@
+@page
+@model SynCraft.Pages.Steps.ByPersonModel
+@using SynCraft.Models
+@{
+    ViewData["Title"] = "Open Steps by Person";
+    var totalSteps = Model.Groups.Sum(g => g.Steps.Count);
+}
+
+<h2 class="mb-3">Open Steps by Person</h2>
+<p class="text-muted">Showing <strong>@totalSteps</strong> open step(s) across <strong>@Model.Groups.Count</strong> person(s) from all active processes.</p>
+
+@if (Model.Groups.Count == 0)
+{
+    <div class="alert alert-success">🎉 No open steps — everything is done or cancelled!</div>
+}
+else
+{
+    @foreach (var group in Model.Groups)
+    {
+        var delayedCount = group.Steps.Count(s => s.IsDelayed);
+
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <strong>@group.PersonName</strong>
+                    <span class="badge bg-secondary ms-1">@group.Steps.Count step(s)</span>
+                </span>
+                @if (delayedCount > 0)
+                {
+                    <span class="badge bg-danger">@delayedCount delayed</span>
+                }
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Step</th>
+                            <th>Category</th>
+                            <th>State</th>
+                            <th>Deadline</th>
+                            <th>Process</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var step in group.Steps)
+                        {
+                            var rowClass = step.IsDelayed ? "table-danger"
+                                : step.ShouldHaveStarted ? "table-warning"
+                                : "";
+
+                            <tr class="@rowClass">
+                                <td>
+                                    <strong>@step.Name</strong>
+                                    @if (!string.IsNullOrWhiteSpace(step.Description))
+                                    {
+                                        <br /><small class="text-muted">@step.Description</small>
+                                    }
+                                </td>
+                                <td><span class="badge category-@step.Category.ToString().ToLower()">@step.Category</span></td>
+                                <td>
+                                    @{
+                                        var stateBadge = step.State switch
+                                        {
+                                            StepState.InProgress => "bg-info",
+                                            StepState.InRisk => "bg-danger",
+                                            _ => step.IsDelayed ? "bg-danger" : "bg-light text-dark"
+                                        };
+                                    }
+                                    <span class="badge @stateBadge">
+                                        @(step.IsDelayed && step.State == StepState.NotStarted ? "DELAYED" : step.State.ToString())
+                                    </span>
+                                </td>
+                                <td>
+                                    @step.Deadline.ToString("yyyy-MM-dd")
+                                    @if (step.MinDurationDays > 0)
+                                    {
+                                        <br /><small class="text-muted">Start by @step.MustStartBy.ToString("MMM dd")</small>
+                                    }
+                                </td>
+                                <td>
+                                    <a asp-page="/Instances/View" asp-route-id="@step.ProcessInstanceId"
+                                       class="text-decoration-none">
+                                        @(step.ProcessInstance?.Name ?? "Unknown")
+                                    </a>
+                                    <br /><small class="text-muted">Target: @(step.ProcessInstance?.TargetDate.ToString("yyyy-MM-dd"))</small>
+                                </td>
+                                <td>
+                                    <a asp-page="/Instances/View" asp-route-id="@step.ProcessInstanceId"
+                                       class="btn btn-sm btn-outline-primary">View Process</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+}

@@ -1,0 +1,25 @@
+@page "{id:int}"
+@model SynCraft.Pages.Persons.DeleteModel
+@{
+    ViewData["Title"] = "Delete Person";
+}
+
+<h2>Delete Person</h2>
+
+<div class="alert alert-warning">
+    Are you sure you want to delete <strong>@Model.Person.Name</strong>?
+</div>
+
+<dl class="row">
+    <dt class="col-sm-3">Name</dt>
+    <dd class="col-sm-9">@Model.Person.Name</dd>
+    <dt class="col-sm-3">Email</dt>
+    <dd class="col-sm-9">@Model.Person.Email</dd>
+    <dt class="col-sm-3">Role</dt>
+    <dd class="col-sm-9">@Model.Person.Role</dd>
+</dl>
+
+<form method="post" asp-route-id="@Model.Person.Id">
+    <button type="submit" class="btn btn-danger">Delete</button>
+    <a asp-page="Index" class="btn btn-secondary">Cancel</a>
+</form>

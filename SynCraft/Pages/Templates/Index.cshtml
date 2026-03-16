@@ -1,0 +1,77 @@
+@page
+@model SynCraft.Pages.Templates.IndexModel
+@{
+    ViewData["Title"] = "Process Templates";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Process Templates</h2>
+    <a asp-page="Create" class="btn btn-primary">+ New Template</a>
+</div>
+
+@if (Model.Templates.Count == 0)
+{
+    <div class="alert alert-info">No process templates defined yet. Create one to get started.</div>
+}
+else
+{
+    <div class="row">
+        @foreach (var template in Model.Templates)
+        {
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">@template.Name</h5>
+                        <p class="card-text text-muted">@(template.Description ?? "No description")</p>
+                        <span class="badge bg-secondary">@template.Steps.Count steps</span>
+                    </div>
+                    <div class="card-footer bg-transparent">
+                        <a asp-page="Edit" asp-route-id="@template.Id" class="btn btn-sm btn-outline-primary">Edit & Manage Steps</a>
+                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                data-bs-toggle="modal" data-bs-target="#deleteModal"
+                                data-delete-id="@template.Id"
+                                data-delete-name="@template.Name"
+                                data-delete-steps="@template.Steps.Count">
+                            Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the template <strong id="deleteTemplateName"></strong>
+                    and all its <strong id="deleteStepCount"></strong> step(s)?</p>
+                <p class="text-danger mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" asp-page-handler="Delete" id="deleteForm">
+                    <input type="hidden" name="id" id="deleteId" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('deleteModal').addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            document.getElementById('deleteId').value = button.getAttribute('data-delete-id');
+            document.getElementById('deleteTemplateName').textContent = button.getAttribute('data-delete-name');
+            document.getElementById('deleteStepCount').textContent = button.getAttribute('data-delete-steps');
+        });
+    </script>
+}
