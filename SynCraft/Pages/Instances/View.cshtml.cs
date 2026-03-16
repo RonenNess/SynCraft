@@ -82,6 +82,22 @@ public class ViewModel : PageModel
             Color = m.Color
         }).ToList();
 
+        // Load instance-specific milestones
+        var instanceMilestones = await _db.MilestoneInstances
+            .Where(m => m.ProcessInstanceId == instance.Id)
+            .OrderBy(m => m.Date)
+            .ToListAsync();
+
+        Milestones.AddRange(instanceMilestones.Select(m => new ResolvedMilestone
+        {
+            Label = m.Label,
+            Date = m.Date,
+            Color = m.Color,
+            InstanceMilestoneId = m.Id
+        }));
+
+        Milestones = Milestones.OrderBy(m => m.Date).ToList();
+
         BuildTimeline();
         return Page();
     }
@@ -152,13 +168,12 @@ public class ViewModel : PageModel
         if (instance.Status != ProcessStatus.Active)
             return RedirectToPage("View", new { id });
 
-        // Create a milestone marking the original target date
-        // After the push the original target is pushDays before the new target
-        _db.MilestoneTemplates.Add(new MilestoneTemplate
+        // Create an instance milestone marking the original target date
+        _db.MilestoneInstances.Add(new MilestoneInstance
         {
-            ProcessTemplateId = instance.ProcessTemplateId,
+            ProcessInstanceId = instance.Id,
             Label = "Original Target",
-            DayOffset = 0 - pushDays,
+            Date = instance.TargetDate,
             Color = MilestoneColor.Red
         });
 
@@ -190,6 +205,38 @@ public class ViewModel : PageModel
             await _db.SaveChangesAsync();
         }
         return RedirectToPage("/Instances/Index");
+    }
+
+    public async Task<IActionResult> OnPostAddMilestoneAsync(int id, string label, DateTime date, MilestoneColor color)
+    {
+        var instance = await _db.ProcessInstances.FindAsync(id);
+        if (instance == null)
+            return NotFound();
+
+        if (string.IsNullOrWhiteSpace(label))
+            return RedirectToPage("View", new { id });
+
+        _db.MilestoneInstances.Add(new MilestoneInstance
+        {
+            ProcessInstanceId = id,
+            Label = label.Trim(),
+            Date = date,
+            Color = color
+        });
+        await _db.SaveChangesAsync();
+
+        return RedirectToPage("View", new { id });
+    }
+
+    public async Task<IActionResult> OnPostDeleteMilestoneAsync(int id, int milestoneId)
+    {
+        var milestone = await _db.MilestoneInstances.FindAsync(milestoneId);
+        if (milestone != null && milestone.ProcessInstanceId == id)
+        {
+            _db.MilestoneInstances.Remove(milestone);
+            await _db.SaveChangesAsync();
+        }
+        return RedirectToPage("View", new { id });
     }
 
     private void BuildTimeline()
@@ -290,5 +337,6 @@ public class ViewModel : PageModel
         public string Label { get; set; } = string.Empty;
         public DateTime Date { get; set; }
         public MilestoneColor Color { get; set; }
+        public int? InstanceMilestoneId { get; set; }
     }
 }

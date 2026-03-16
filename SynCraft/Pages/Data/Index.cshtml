@@ -26,7 +26,7 @@
                 <ul class="mb-3">
                     <li><strong>@Model.PersonCount</strong> person(s)</li>
                     <li><strong>@Model.TemplateCount</strong> template(s) (with steps &amp; milestones)</li>
-                    <li><strong>@Model.InstanceCount</strong> process instance(s) (with steps &amp; comments)</li>
+                    <li><strong>@Model.InstanceCount</strong> process instance(s) (with steps, comments &amp; milestones)</li>
                 </ul>
                 <form method="post" asp-page-handler="Export">
                     <button type="submit" class="btn btn-primary">
@@ -51,9 +51,10 @@
                 </ul>
                 <form method="post" asp-page-handler="Import" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <input type="file" name="importFile" class="form-control" accept=".json" required />
+                        <input type="file" name="importFile" class="form-control" accept=".json" required
+                               id="importFileInput" />
                     </div>
-                    <button type="submit" class="btn btn-warning"
+                    <button type="submit" class="btn btn-warning" id="importBtn" disabled
                             onclick="return confirm('This will add new data from the file. Existing records with the same name are skipped. Continue?')">
                         📤 Import JSON
                     </button>
@@ -66,3 +67,15 @@
 <div class="mt-2">
     <a asp-page="/Index" class="btn btn-outline-secondary">← Back to Dashboard</a>
 </div>
+
+@section Scripts {
+    <script>
+        var fileInput = document.getElementById('importFileInput');
+        var importBtn = document.getElementById('importBtn');
+        if (fileInput && importBtn) {
+            fileInput.addEventListener('change', function () {
+                importBtn.disabled = !fileInput.value;
+            });
+        }
+    </script>
+}

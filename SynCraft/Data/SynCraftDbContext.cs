@@ -14,6 +14,7 @@ public class SynCraftDbContext : DbContext
     public DbSet<StepInstance> StepInstances => Set<StepInstance>();
     public DbSet<StepComment> StepComments => Set<StepComment>();
     public DbSet<MilestoneTemplate> MilestoneTemplates => Set<MilestoneTemplate>();
+    public DbSet<MilestoneInstance> MilestoneInstances => Set<MilestoneInstance>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -53,6 +54,12 @@ public class SynCraftDbContext : DbContext
             .HasOne(m => m.ProcessTemplate)
             .WithMany(p => p.Milestones)
             .HasForeignKey(m => m.ProcessTemplateId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<MilestoneInstance>()
+            .HasOne(m => m.ProcessInstance)
+            .WithMany(p => p.Milestones)
+            .HasForeignKey(m => m.ProcessInstanceId)
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

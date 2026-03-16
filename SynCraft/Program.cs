@@ -29,6 +29,16 @@ using (var scope = app.Services.CreateScope())
         FOREIGN KEY (ProcessTemplateId) REFERENCES ProcessTemplates(Id) ON DELETE CASCADE
     )"); }
     catch { /* Table already exists */ }
+
+    try { db.Database.ExecuteSqlRaw(@"CREATE TABLE IF NOT EXISTS MilestoneInstances (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+        ProcessInstanceId INTEGER NOT NULL,
+        Label TEXT NOT NULL,
+        Date TEXT NOT NULL,
+        Color INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY (ProcessInstanceId) REFERENCES ProcessInstances(Id) ON DELETE CASCADE
+    )"); }
+    catch { /* Table already exists */ }
 }
 
 if (!app.Environment.IsDevelopment())

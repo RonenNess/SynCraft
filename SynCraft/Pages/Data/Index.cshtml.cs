@@ -39,6 +39,7 @@ public class IndexModel : PageModel
         var instances = await _db.ProcessInstances
             .Include(i => i.Steps)
             .ThenInclude(s => s.Comments)
+            .Include(i => i.Milestones)
             .OrderBy(i => i.Id)
             .ToListAsync();
 
@@ -100,6 +101,12 @@ public class IndexModel : PageModel
                         Text = c.Text,
                         CreatedDate = c.CreatedDate
                     }).ToList()
+                }).ToList(),
+                Milestones = i.Milestones.Select(m => new ExportInstanceMilestone
+                {
+                    Label = m.Label,
+                    Date = m.Date,
+                    Color = m.Color
                 }).ToList()
             }).ToList()
         };
@@ -148,119 +155,138 @@ public class IndexModel : PageModel
 
         int personsAdded = 0, templatesAdded = 0, instancesAdded = 0;
 
-        // Import Persons (skip if name already exists)
-        var existingPersons = await _db.Persons.ToDictionaryAsync(p => p.Name, p => p);
-        foreach (var ep in data.Persons)
+        try
         {
-            if (!existingPersons.ContainsKey(ep.Name))
+            // Import Persons (skip if name already exists)
+            var existingPersons = await _db.Persons.ToDictionaryAsync(p => p.Name, p => p);
+            foreach (var ep in data.Persons)
             {
-                var person = new Person { Name = ep.Name, Email = ep.Email, Role = ep.Role };
-                _db.Persons.Add(person);
-                existingPersons[ep.Name] = person;
-                personsAdded++;
-            }
-        }
-        await _db.SaveChangesAsync();
-
-        // Refresh person map with IDs
-        var personLookup = await _db.Persons.ToDictionaryAsync(p => p.Name, p => p.Id);
-
-        // Import Templates (skip if name already exists)
-        var existingTemplates = await _db.ProcessTemplates.Select(t => t.Name).ToListAsync();
-        foreach (var et in data.Templates)
-        {
-            if (existingTemplates.Contains(et.Name))
-                continue;
-
-            var template = new ProcessTemplate
-            {
-                Name = et.Name,
-                Description = et.Description,
-                TargetDateComment = et.TargetDateComment,
-                CreatedDate = et.CreatedDate
-            };
-            _db.ProcessTemplates.Add(template);
-            await _db.SaveChangesAsync();
-
-            foreach (var es in et.Steps)
-            {
-                _db.StepTemplates.Add(new StepTemplate
+                if (!existingPersons.ContainsKey(ep.Name))
                 {
-                    ProcessTemplateId = template.Id,
-                    Name = es.Name,
-                    Description = es.Description,
-                    Category = es.Category,
-                    ResponsiblePersonId = es.ResponsiblePersonName != null && personLookup.ContainsKey(es.ResponsiblePersonName)
-                        ? personLookup[es.ResponsiblePersonName] : null,
-                    DayOffset = es.DayOffset,
-                    MinDurationDays = es.MinDurationDays
-                });
-            }
-
-            foreach (var em in et.Milestones)
-            {
-                _db.MilestoneTemplates.Add(new MilestoneTemplate
-                {
-                    ProcessTemplateId = template.Id,
-                    Label = em.Label,
-                    DayOffset = em.DayOffset,
-                    Color = em.Color
-                });
-            }
-
-            await _db.SaveChangesAsync();
-            templatesAdded++;
-        }
-
-        // Import Instances
-        var templateLookup = await _db.ProcessTemplates.ToDictionaryAsync(t => t.Name, t => t.Id);
-        foreach (var ei in data.Instances)
-        {
-            if (!templateLookup.ContainsKey(ei.TemplateName))
-                continue;
-
-            var instance = new ProcessInstance
-            {
-                ProcessTemplateId = templateLookup[ei.TemplateName],
-                Name = ei.Name,
-                TargetDate = ei.TargetDate,
-                CreatedDate = ei.CreatedDate,
-                Status = ei.Status
-            };
-            _db.ProcessInstances.Add(instance);
-            await _db.SaveChangesAsync();
-
-            foreach (var es in ei.Steps)
-            {
-                var step = new StepInstance
-                {
-                    ProcessInstanceId = instance.Id,
-                    Name = es.Name,
-                    Description = es.Description,
-                    Category = es.Category,
-                    ResponsiblePersonId = es.ResponsiblePersonName != null && personLookup.ContainsKey(es.ResponsiblePersonName)
-                        ? personLookup[es.ResponsiblePersonName] : null,
-                    DayOffset = es.DayOffset,
-                    MinDurationDays = es.MinDurationDays,
-                    State = es.State
-                };
-                _db.StepInstances.Add(step);
-                await _db.SaveChangesAsync();
-
-                foreach (var ec in es.Comments)
-                {
-                    _db.StepComments.Add(new StepComment
-                    {
-                        StepInstanceId = step.Id,
-                        Author = ec.Author,
-                        Text = ec.Text,
-                        CreatedDate = ec.CreatedDate
-                    });
+                    var person = new Person { Name = ep.Name, Email = ep.Email, Role = ep.Role };
+                    _db.Persons.Add(person);
+                    existingPersons[ep.Name] = person;
+                    personsAdded++;
                 }
             }
-
             await _db.SaveChangesAsync();
-            instancesAdded++;
+
+            // Refresh person map with IDs
+            var personLookup = await _db.Persons.ToDictionaryAsync(p => p.Name, p => p.Id);
+
+            // Import Templates (skip if name already exists)
+            var existingTemplates = await _db.ProcessTemplates.Select(t => t.Name).ToListAsync();
+            foreach (var et in data.Templates)
+            {
+                if (existingTemplates.Contains(et.Name))
+                    continue;
+
+                var template = new ProcessTemplate
+                {
+                    Name = et.Name,
+                    Description = et.Description,
+                    TargetDateComment = et.TargetDateComment,
+                    CreatedDate = et.CreatedDate
+                };
+                _db.ProcessTemplates.Add(template);
+                await _db.SaveChangesAsync();
+
+                foreach (var es in et.Steps)
+                {
+                    _db.StepTemplates.Add(new StepTemplate
+                    {
+                        ProcessTemplateId = template.Id,
+                        Name = es.Name,
+                        Description = es.Description,
+                        Category = es.Category,
+                        ResponsiblePersonId = es.ResponsiblePersonName != null && personLookup.ContainsKey(es.ResponsiblePersonName)
+                            ? personLookup[es.ResponsiblePersonName] : null,
+                        DayOffset = es.DayOffset,
+                        MinDurationDays = es.MinDurationDays
+                    });
+                }
+
+                foreach (var em in et.Milestones)
+                {
+                    _db.MilestoneTemplates.Add(new MilestoneTemplate
+                    {
+                        ProcessTemplateId = template.Id,
+                        Label = em.Label,
+                        DayOffset = em.DayOffset,
+                        Color = em.Color
+                    });
+                }
+
+                await _db.SaveChangesAsync();
+                templatesAdded++;
+            }
+
+            // Import Instances
+            var templateLookup = await _db.ProcessTemplates.ToDictionaryAsync(t => t.Name, t => t.Id);
+            foreach (var ei in data.Instances)
+            {
+                if (!templateLookup.ContainsKey(ei.TemplateName))
+                    continue;
+
+                var instance = new ProcessInstance
+                {
+                    ProcessTemplateId = templateLookup[ei.TemplateName],
+                    Name = ei.Name,
+                    TargetDate = ei.TargetDate,
+                    CreatedDate = ei.CreatedDate,
+                    Status = ei.Status
+                };
+                _db.ProcessInstances.Add(instance);
+                await _db.SaveChangesAsync();
+
+                foreach (var es in ei.Steps)
+                {
+                    var step = new StepInstance
+                    {
+                        ProcessInstanceId = instance.Id,
+                        Name = es.Name,
+                        Description = es.Description,
+                        Category = es.Category,
+                        ResponsiblePersonId = es.ResponsiblePersonName != null && personLookup.ContainsKey(es.ResponsiblePersonName)
+                            ? personLookup[es.ResponsiblePersonName] : null,
+                        DayOffset = es.DayOffset,
+                        MinDurationDays = es.MinDurationDays,
+                        State = es.State
+                    };
+                    _db.StepInstances.Add(step);
+                    await _db.SaveChangesAsync();
+
+                    foreach (var ec in es.Comments)
+                    {
+                        _db.StepComments.Add(new StepComment
+                        {
+                            StepInstanceId = step.Id,
+                            Author = ec.Author,
+                            Text = ec.Text,
+                            CreatedDate = ec.CreatedDate
+                        });
+                    }
+                }
+
+                foreach (var em in ei.Milestones)
+                {
+                    _db.MilestoneInstances.Add(new MilestoneInstance
+                    {
+                        ProcessInstanceId = instance.Id,
+                        Label = em.Label,
+                        Date = em.Date,
+                        Color = em.Color
+                    });
+                }
+
+                await _db.SaveChangesAsync();
+                instancesAdded++;
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"Error: Import failed. {ex.Message}";
+            return RedirectToPage();
         }
 
         StatusMessage = $"Import complete: {personsAdded} person(s), {templatesAdded} template(s), {instancesAdded} instance(s) added.";
@@ -319,6 +345,14 @@ public class IndexModel : PageModel
         public DateTime CreatedDate { get; set; }
         public ProcessStatus Status { get; set; }
         public List<ExportStepInstance> Steps { get; set; } = [];
+        public List<ExportInstanceMilestone> Milestones { get; set; } = [];
+    }
+
+    public class ExportInstanceMilestone
+    {
+        public string Label { get; set; } = string.Empty;
+        public DateTime Date { get; set; }
+        public MilestoneColor Color { get; set; }
     }
 
     public class ExportStepInstance

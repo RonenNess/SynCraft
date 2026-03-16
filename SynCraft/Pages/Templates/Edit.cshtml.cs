@@ -27,6 +27,12 @@ public class EditModel : PageModel
 
     public List<SelectListItem> PersonOptions { get; set; } = [];
 
+    // Timeline preview properties
+    public DateTime PreviewTargetDate { get; set; }
+    public DateTime TimelineStart { get; set; }
+    public DateTime TimelineEnd { get; set; }
+    public int TimelineDays { get; set; }
+
     public async Task<IActionResult> OnGetAsync(int id)
     {
         var template = await _db.ProcessTemplates
@@ -40,6 +46,7 @@ public class EditModel : PageModel
 
         Template = template;
         await LoadPersonOptions();
+        BuildTimelinePreview();
         return Page();
     }
 
@@ -123,5 +130,33 @@ public class EditModel : PageModel
             await _db.SaveChangesAsync();
         }
         return RedirectToPage("Edit", new { id = Template.Id });
+    }
+
+    private void BuildTimelinePreview()
+    {
+        PreviewTargetDate = DateTime.Today.AddMonths(1);
+
+        var allDates = new List<DateTime> { DateTime.Today, PreviewTargetDate };
+
+        foreach (var step in Template.Steps)
+        {
+            var deadline = PreviewTargetDate.AddDays(step.DayOffset);
+            allDates.Add(deadline);
+            if (step.MinDurationDays > 0)
+                allDates.Add(deadline.AddDays(-step.MinDurationDays));
+        }
+
+        foreach (var ms in Template.Milestones)
+            allDates.Add(PreviewTargetDate.AddDays(ms.DayOffset));
+
+        TimelineStart = allDates.Min().AddDays(-7);
+        TimelineEnd = allDates.Max().AddDays(7);
+        TimelineDays = Math.Max(1, (TimelineEnd - TimelineStart).Days);
+    }
+
+    public double GetPosition(DateTime date)
+    {
+        var days = (date - TimelineStart).TotalDays;
+        return Math.Clamp(days / TimelineDays * 100, 0, 100);
     }
 }

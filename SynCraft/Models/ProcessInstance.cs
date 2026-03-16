@@ -27,6 +27,8 @@ public class ProcessInstance
 
     public List<StepInstance> Steps { get; set; } = [];
 
+    public List<MilestoneInstance> Milestones { get; set; } = [];
+
     public bool CanComplete => Steps.Count > 0 &&
         Steps.All(s => s.State == StepState.Done || s.State == StepState.Cancelled);
 }

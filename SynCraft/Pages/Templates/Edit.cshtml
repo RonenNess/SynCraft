@@ -275,6 +275,134 @@
     </div>
 </div>
 
+@{
+    string F(double v) => v.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+    var todayPos = Model.GetPosition(DateTime.Today);
+    var targetPos = Model.GetPosition(Model.PreviewTargetDate);
+}
+
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <span>Timeline Preview</span>
+                <small class="text-muted ms-2">(target date = @Model.PreviewTargetDate.ToString("yyyy-MM-dd"))</small>
+            </div>
+            <div class="card-body p-0">
+                @if (Model.Template.Steps.Count == 0 && Model.Template.Milestones.Count == 0)
+                {
+                    <p class="text-muted p-3 mb-0">Add steps or milestones to see a preview.</p>
+                }
+                else
+                {
+                    <div class="timeline-container mb-0" style="border: none; border-radius: 0;">
+                        <!-- Timeline header with date markers -->
+                        <div class="timeline-header">
+                            <div class="timeline-label"></div>
+                            <div class="timeline-track">
+                                @{
+                                    var markerInterval = Math.Max(1, Model.TimelineDays / 10);
+                                    for (int d = 0; d <= Model.TimelineDays; d += markerInterval)
+                                    {
+                                        var markerDate = Model.TimelineStart.AddDays(d);
+                                        var pos = Model.GetPosition(markerDate);
+                                        <div class="timeline-date-marker" style="left: @F(pos)%;">
+                                            <span>@markerDate.ToString("MMM dd")</span>
+                                        </div>
+                                    }
+                                }
+                                <div class="timeline-today" style="left: @F(todayPos)%;"
+                                     title="Today (@DateTime.Today.ToString("yyyy-MM-dd"))">
+                                    <div class="today-line"></div>
+                                    <span class="today-label">Today</span>
+                                </div>
+                                <div class="timeline-target" style="left: @F(targetPos)%;"
+                                     title="Target Date (@Model.PreviewTargetDate.ToString("yyyy-MM-dd"))">
+                                    <div class="target-line"></div>
+                                    <span class="target-label">Target</span>
+                                </div>
+                                @foreach (var ms in Model.Template.Milestones)
+                                {
+                                    var msDate = Model.PreviewTargetDate.AddDays(ms.DayOffset);
+                                    var msPos = Model.GetPosition(msDate);
+                                    var msColor = ms.Color switch
+                                    {
+                                        MilestoneColor.Green => "#198754",
+                                        MilestoneColor.Red => "#dc3545",
+                                        _ => "#0d6efd"
+                                    };
+                                    <div class="timeline-milestone" style="left: @F(msPos)%; --ms-color: @msColor;"
+                                         title="@ms.Label (@msDate.ToString("yyyy-MM-dd"))">
+                                        <div class="milestone-line"></div>
+                                        <span class="milestone-label">@ms.Label</span>
+                                    </div>
+                                }
+                            </div>
+                        </div>
+
+                        <!-- Single row with all steps -->
+                        @if (Model.Template.Steps.Count > 0)
+                        {
+                            <div class="timeline-row">
+                                <div class="timeline-label">
+                                    <strong>Steps</strong>
+                                    <small class="d-block text-muted">@Model.Template.Steps.Count step(s)</small>
+                                </div>
+                                <div class="timeline-track" style="height: @(Model.Template.Steps.Count * 50)px;">
+                                    <div class="timeline-today" style="left: @F(todayPos)%;"><div class="today-line"></div></div>
+                                    <div class="timeline-target" style="left: @F(targetPos)%;"><div class="target-line"></div></div>
+                                    @foreach (var ms in Model.Template.Milestones)
+                                    {
+                                        var msDate = Model.PreviewTargetDate.AddDays(ms.DayOffset);
+                                        var msPos = Model.GetPosition(msDate);
+                                        var msColor = ms.Color switch
+                                        {
+                                            MilestoneColor.Green => "#198754",
+                                            MilestoneColor.Red => "#dc3545",
+                                            _ => "#0d6efd"
+                                        };
+                                        <div class="timeline-milestone" style="left: @F(msPos)%; --ms-color: @msColor;"><div class="milestone-line"></div></div>
+                                    }
+                                    @{
+                                        int lane = 0;
+                                    }
+                                    @foreach (var step in Model.Template.Steps.OrderBy(s => s.DayOffset))
+                                    {
+                                        var deadline = Model.PreviewTargetDate.AddDays(step.DayOffset);
+                                        var deadlinePos = Model.GetPosition(deadline);
+
+                                        if (step.MinDurationDays > 0)
+                                        {
+                                            var startDate = deadline.AddDays(-step.MinDurationDays);
+                                            var startPos = Model.GetPosition(startDate);
+                                            var barWidth = deadlinePos - startPos;
+                                            var barTop = lane * 50 + 42;
+                                            <div class="pin-duration step-notstarted"
+                                                 style="left: @F(startPos)%; width: @F(barWidth)%; top: @(barTop)px;"></div>
+                                        }
+
+                                        <div class="timeline-pin step-notstarted"
+                                             style="left: @F(deadlinePos)%; top: @(lane * 50)px;"
+                                             title="@step.Name – @deadline.ToString("yyyy-MM-dd")">
+                                            <div class="pin-sign">
+                                                <span class="badge category-@step.Category.ToString().ToLower()">@step.Category</span>
+                                                <span class="pin-name">@step.Name</span>
+                                            </div>
+                                            <div class="pin-stem"></div>
+                                            <div class="pin-dot"></div>
+                                        </div>
+                                        lane++;
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="mt-3">
     <a asp-page="Index" class="btn btn-secondary">← Back to Templates</a>
 </div>
