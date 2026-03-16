@@ -3,6 +3,7 @@
 @using SynCraft.Models
 @{
     ViewData["Title"] = Model.Instance.Name;
+    ViewData["FullWidth"] = true;
     var today = DateTime.Today;
     var todayPos = Model.GetPosition(today);
     var targetPos = Model.GetPosition(Model.Instance.TargetDate);
