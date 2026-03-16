@@ -262,4 +262,4 @@ The JSON export format uses human-readable names (not database IDs) for all refe
 
 ## 📄 License
 
-This project is distributed under the MIT license, and can be used freely and commerically.
+This project is distributed under the MIT license, and can be used freely and commercially.
