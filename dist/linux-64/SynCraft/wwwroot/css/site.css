@@ -30,8 +30,19 @@ body {
   text-align: start;
 }
 
+label, .form-label {
+  cursor: default !important;
+}
+
+.milestone-label, .today-label, .target-label {
+    cursor: default !important;
+}
+
 /* ===== Category badges ===== */
-.category-development { background-color: #0d6efd; color: #fff; }
+.category-development {
+    background-color: #0d6efd;
+    color: #fff;
+}
 .category-documentation { background-color: #6f42c1; color: #fff; }
 .category-security { background-color: #dc3545; color: #fff; }
 .category-publishing { background-color: #198754; color: #fff; }
@@ -149,7 +160,7 @@ body {
   position: absolute;
   top: 0;
   bottom: 0;
-  width: 3px;
+  width: 6px;
   background: #dc3545;
 }
 
