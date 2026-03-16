@@ -9,7 +9,7 @@
 
 <div class="row mb-4">
     <div class="col-md-6">
-        <div class="card">
+        <div class="card h-100">
             <div class="card-header">Template Details</div>
             <div class="card-body">
                 <form method="post" asp-page-handler="UpdateTemplate">
@@ -29,6 +29,98 @@
                     </div>
                     <button type="submit" class="btn btn-primary btn-sm">Update</button>
                 </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 d-none d-md-block">
+        <div class="card h-100">
+            <div class="card-header">Overview</div>
+            <div class="card-body">
+                @{
+                    var steps = Model.Template.Steps;
+                    var milestones = Model.Template.Milestones;
+                    var categories = steps.Select(s => s.Category).Distinct().OrderBy(c => c).ToList();
+                    var persons = steps
+                        .Where(s => s.ResponsiblePerson != null)
+                        .Select(s => s.ResponsiblePerson!.Name)
+                        .Distinct()
+                        .OrderBy(n => n)
+                        .ToList();
+                    var unassignedCount = steps.Count(s => s.ResponsiblePersonId == null);
+                    var minOffset = steps.Count > 0 ? steps.Min(s => s.DayOffset) : 0;
+                    var maxOffset = steps.Count > 0 ? steps.Max(s => s.DayOffset) : 0;
+                    var totalSpan = maxOffset - minOffset;
+                    var totalDuration = steps.Sum(s => s.MinDurationDays);
+                }
+                <dl class="row mb-0 small">
+                    <dt class="col-sm-5">Steps</dt>
+                    <dd class="col-sm-7">@steps.Count</dd>
+
+                    <dt class="col-sm-5">Milestones</dt>
+                    <dd class="col-sm-7">@milestones.Count</dd>
+
+                    <dt class="col-sm-5">Timeline Span</dt>
+                    <dd class="col-sm-7">
+                        @if (steps.Count > 0)
+                        {
+                            <span>@totalSpan day(s) <span class="text-muted">(offset @minOffset to @maxOffset)</span></span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-5">Total Duration</dt>
+                    <dd class="col-sm-7">
+                        @if (totalDuration > 0)
+                        {
+                            <span>@totalDuration day(s) of work</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-5">Categories</dt>
+                    <dd class="col-sm-7">
+                        @if (categories.Count > 0)
+                        {
+                            @foreach (var cat in categories)
+                            {
+                                <span class="badge category-@cat.ToString().ToLower() me-1">@cat</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-5">Participants</dt>
+                    <dd class="col-sm-7">
+                        @if (persons.Count > 0)
+                        {
+                            @string.Join(", ", persons)
+                            @if (unassignedCount > 0)
+                            {
+                                <span class="text-muted ms-1">+ @unassignedCount unassigned</span>
+                            }
+                        }
+                        else if (unassignedCount > 0)
+                        {
+                            <span class="text-muted">@unassignedCount unassigned step(s)</span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-5">Created</dt>
+                    <dd class="col-sm-7">@Model.Template.CreatedDate.ToString("yyyy-MM-dd")</dd>
+                </dl>
             </div>
         </div>
     </div>
@@ -298,7 +390,6 @@
                     <div class="timeline-container mb-0" style="border: none; border-radius: 0;">
                         <!-- Timeline header with date markers -->
                         <div class="timeline-header">
-                            <div class="timeline-label"></div>
                             <div class="timeline-track">
                                 @{
                                     var markerInterval = Math.Max(1, Model.TimelineDays / 10);
@@ -344,10 +435,6 @@
                         @if (Model.Template.Steps.Count > 0)
                         {
                             <div class="timeline-row">
-                                <div class="timeline-label">
-                                    <strong>Steps</strong>
-                                    <small class="d-block text-muted">@Model.Template.Steps.Count step(s)</small>
-                                </div>
                                 <div class="timeline-track" style="height: @(Model.Template.Steps.Count * 50)px;">
                                     <div class="timeline-today" style="left: @F(todayPos)%;"><div class="today-line"></div></div>
                                     <div class="timeline-target" style="left: @F(targetPos)%;"><div class="target-line"></div></div>
