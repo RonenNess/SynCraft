@@ -1,0 +1,303 @@
+html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+
+.form-floating > .form-control-plaintext::placeholder, .form-floating > .form-control::placeholder {
+  color: var(--bs-secondary-color);
+  text-align: end;
+}
+
+.form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
+  text-align: start;
+}
+
+/* ===== Category badges ===== */
+.category-development { background-color: #0d6efd; color: #fff; }
+.category-documentation { background-color: #6f42c1; color: #fff; }
+.category-security { background-color: #dc3545; color: #fff; }
+.category-publishing { background-color: #198754; color: #fff; }
+.category-tests { background-color: #fd7e14; color: #fff; }
+
+/* ===== Timeline ===== */
+.timeline-container {
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  background: #f8f9fa;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding-top: 18px;
+}
+
+.timeline-header {
+  display: flex;
+  border-bottom: 2px solid #dee2e6;
+  background: #e9ecef;
+  height: 40px;
+  min-width: fit-content;
+}
+
+.timeline-row {
+  display: flex;
+  border-bottom: 1px solid #dee2e6;
+  min-height: 60px;
+  min-width: fit-content;
+}
+
+.timeline-row:last-child {
+  border-bottom: none;
+}
+
+.timeline-label {
+  width: 160px;
+  min-width: 160px;
+  padding: 8px 12px;
+  border-right: 1px solid #dee2e6;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-size: 0.85rem;
+}
+
+.timeline-track {
+  flex: 1;
+  position: relative;
+  min-height: 40px;
+  min-width: 600px;
+}
+
+.timeline-date-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed #ced4da;
+  font-size: 0.7rem;
+  color: #6c757d;
+  z-index: 1;
+}
+
+.timeline-date-marker span {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  white-space: nowrap;
+}
+
+/* Today marker */
+.timeline-today {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+}
+
+.today-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #0d6efd;
+}
+
+.timeline-today:hover {
+  z-index: 30;
+}
+
+.today-label {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #0d6efd;
+  white-space: nowrap;
+  margin-bottom: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+/* Target date marker */
+.timeline-target {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 4;
+}
+
+.target-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #dc3545;
+}
+
+.timeline-target:hover {
+  z-index: 30;
+}
+
+.target-label {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.7rem;
+  font-weight: bold;
+  color: #dc3545;
+  white-space: nowrap;
+  margin-bottom: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+/* ===== Milestone markers ===== */
+.timeline-milestone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 3;
+}
+
+.timeline-milestone:hover {
+  z-index: 30;
+}
+
+.milestone-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--ms-color, #0d6efd);
+}
+
+.milestone-label {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--ms-color, #0d6efd);
+  white-space: nowrap;
+  margin-bottom: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+/* ===== Pin markers on timeline ===== */
+.timeline-pin {
+  position: absolute;
+  transform: translateX(-50%);
+  height: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  z-index: 10;
+  padding-top: 2px;
+  --pin-color: #6c757d;
+  --pin-bg: #f8f9fa;
+  --pin-text: #495057;
+}
+
+.timeline-pin:hover {
+  z-index: 20;
+}
+
+.timeline-pin:hover .pin-sign {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+
+.pin-sign {
+  background: var(--pin-bg);
+  border: 1.5px solid var(--pin-color);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.7rem;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--pin-text);
+  max-width: 200px;
+  overflow: hidden;
+  transition: box-shadow 0.15s;
+}
+
+.pin-sign .badge {
+  font-size: 0.6rem;
+  padding: 1px 4px;
+}
+
+.pin-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pin-stem {
+  width: 2px;
+  flex: 1;
+  min-height: 6px;
+  background: var(--pin-color);
+}
+
+.pin-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--pin-color);
+  flex-shrink: 0;
+}
+
+.pin-duration {
+  position: absolute;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--pin-color);
+  opacity: 0.4;
+  z-index: 9;
+}
+
+/* Pin state variants */
+.step-notstarted  { --pin-color: #6c757d; --pin-bg: #f8f9fa; --pin-text: #495057; }
+.step-inprogress  { --pin-color: #0d6efd; --pin-bg: #cfe2ff; --pin-text: #084298; }
+.step-inrisk      { --pin-color: #dc3545; --pin-bg: #f8d7da; --pin-text: #842029; }
+.step-done        { --pin-color: #198754; --pin-bg: #d1e7dd; --pin-text: #0f5132; }
+.step-cancelled   { --pin-color: #6c757d; --pin-bg: #e2e3e5; --pin-text: #41464b; opacity: 0.6; }
+.step-delayed     { --pin-color: #dc3545; --pin-bg: #f8d7da; --pin-text: #842029; }
+.step-warning     { --pin-color: #ffc107; --pin-bg: #fff3cd; --pin-text: #664d03; }
+
+.step-cancelled .pin-name { text-decoration: line-through; }
+
+.step-delayed .pin-dot {
+  animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.6); }
+}

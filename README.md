@@ -101,11 +101,47 @@ Full data portability via JSON:
 
 ## 🚀 Getting Started
 
-### Prerequisites
+### Windows x64
+
+Under `dist\win-64\` you can find a built version for Windows x64.
+
+#### Run
+
+```bash
+cd SynCraft
+SynCraft.exe
+```
+
+The app will create a `syncraft.db` SQLite database automatically on first launch. No migrations or external database setup required.
+
+Navigate to `https://localhost:<port>` (the port is shown in the console output).
+
+### Linux x64
+
+Under `dist\linux-64\` you can find a built version for Linux x64.
+
+#### Run
+
+```bash
+cd SynCraft
+chmod +x SynCraft
+./SynCraft
+```
+
+The app will create a `syncraft.db` SQLite database automatically on first launch. No migrations or external database setup required.
+
+Navigate to `https://localhost:<port>` (the port is shown in the console output).
+
+
+### Any Platform
+
+Under `dist\any-platform\` you can find a cross-platform built version.
+
+#### Prerequisites
 
 - [.NET 10 SDK](https://dotnet.microsoft.com/download) or later
 
-### Run
+#### Run
 
 ```bash
 cd SynCraft
@@ -116,7 +152,7 @@ The app will create a `syncraft.db` SQLite database automatically on first launc
 
 Navigate to `https://localhost:<port>` (the port is shown in the console output).
 
-### First Steps
+## First Steps
 
 1. **Add persons** — go to _Persons_ and create the people involved in your processes
 2. **Create a template** — go to _Templates_, create one, then add steps (with day offsets relative to the target date) and optionally milestones
