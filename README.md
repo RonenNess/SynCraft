@@ -4,6 +4,37 @@ I may choose to update it in the future, but no promises.
 
 ---
 
+
+## 📑 Table of Contents
+
+- [⚙ SynCraft](#-syncraft)
+- [✨ Key Features](#-key-features)
+  - [📋 Process Templates](#-process-templates)
+  - [🚀 Process Instances](#-process-instances)
+  - [📊 Interactive Timeline](#-interactive-timeline)
+  - [👥 Persons](#-persons)
+  - [📌 Steps by Person](#-steps-by-person)
+  - [🏠 Dashboard](#-dashboard)
+  - [💾 Export / Import](#-export--import)
+- [🛠 Tech Stack](#-tech-stack)
+- [🚀 Getting Started](#-getting-started)
+  - [Windows x64](#windows-x64)
+    - [Run](#run)
+  - [Linux x64](#linux-x64)
+    - [Run](#run-1)
+  - [Any Platform](#any-platform)
+    - [Prerequisites](#prerequisites)
+    - [Run](#run-2)
+- [First Steps](#first-steps)
+- [📁 Project Structure](#-project-structure)
+- [🔑 Core Concepts](#-core-concepts)
+  - [Day Offsets](#day-offsets)
+  - [Minimum Duration](#minimum-duration)
+  - [Push Deadline](#push-deadline)
+- [📦 Data Portability](#-data-portability)
+- [📄 License](#-license)
+
+
 # ⚙ SynCraft
 
 **SynCraft** is a lightweight, self-hosted process management tool built with ASP.NET Core Razor Pages and SQLite. It helps teams define repeatable process templates, launch instances of those processes with a target date, and track every step through to completion — all visualized on an interactive timeline.
