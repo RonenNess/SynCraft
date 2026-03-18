@@ -39,6 +39,31 @@ using (var scope = app.Services.CreateScope())
         FOREIGN KEY (ProcessInstanceId) REFERENCES ProcessInstances(Id) ON DELETE CASCADE
     )"); }
     catch { /* Table already exists */ }
+
+    try { db.Database.ExecuteSqlRaw(@"CREATE TABLE IF NOT EXISTS DynamicTimelineSteps (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+        Name TEXT NOT NULL,
+        Description TEXT NULL,
+        AssigneeName TEXT NOT NULL,
+        Category INTEGER NOT NULL DEFAULT 0,
+        StartDate TEXT NOT NULL,
+        EndDate TEXT NOT NULL,
+        State INTEGER NOT NULL DEFAULT 0
+    )"); }
+    catch { /* Table already exists */ }
+
+    try { db.Database.ExecuteSqlRaw(@"CREATE TABLE IF NOT EXISTS DynamicTimelineMilestones (
+        Id INTEGER PRIMARY KEY AUTOINCREMENT,
+        Label TEXT NOT NULL,
+        Date TEXT NOT NULL,
+        Color INTEGER NOT NULL DEFAULT 1
+    )"); }
+    catch { /* Table already exists */ }
+
+    try { db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_DynamicTimelineSteps_AssigneeName ON DynamicTimelineSteps(AssigneeName)"); } catch { }
+    try { db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_DynamicTimelineSteps_EndDate ON DynamicTimelineSteps(EndDate)"); } catch { }
+    try { db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_DynamicTimelineSteps_State ON DynamicTimelineSteps(State)"); } catch { }
+    try { db.Database.ExecuteSqlRaw("CREATE INDEX IF NOT EXISTS IX_DynamicTimelineMilestones_Date ON DynamicTimelineMilestones(Date)"); } catch { }
 }
 
 if (!app.Environment.IsDevelopment())

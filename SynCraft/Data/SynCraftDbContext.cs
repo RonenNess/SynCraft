@@ -15,6 +15,8 @@ public class SynCraftDbContext : DbContext
     public DbSet<StepComment> StepComments => Set<StepComment>();
     public DbSet<MilestoneTemplate> MilestoneTemplates => Set<MilestoneTemplate>();
     public DbSet<MilestoneInstance> MilestoneInstances => Set<MilestoneInstance>();
+    public DbSet<DynamicTimelineStep> DynamicTimelineSteps => Set<DynamicTimelineStep>();
+    public DbSet<DynamicTimelineMilestone> DynamicTimelineMilestones => Set<DynamicTimelineMilestone>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

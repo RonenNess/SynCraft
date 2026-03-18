@@ -1,0 +1,823 @@
+@page
+@model SynCraft.Pages.Timeline.IndexModel
+@using SynCraft.Models
+@{
+    ViewData["Title"] = "Dynamic Timeline";
+    ViewData["FullWidth"] = true;
+    var today = DateTime.Today;
+    var todayPos = Model.GetPosition(today);
+    string F(double v) => v.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+    var totalRows = Model.StepGroups.Count + Model.ProcessRows.Count;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">📅 Dynamic Timeline</h2>
+        <small class="text-muted">
+            @Model.Steps.Count step(s) &middot; @Model.Milestones.Count milestone(s) &middot;
+            @Model.ProcessRows.Count process(es) &middot;
+            @totalRows row(s)
+        </small>
+    </div>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addStepModal">
+            ➕ Add Step
+        </button>
+        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#addMilestoneModal">
+            📌 Add Milestone
+        </button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#manageModal">
+            📋 Milestones
+        </button>
+        @if (Model.Steps.Count > 0 || Model.Milestones.Count > 0)
+        {
+            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cleanupModal">
+                🧹 Cleanup
+            </button>
+        }
+    </div>
+</div>
+
+@if (Model.Steps.Count == 0 && Model.Milestones.Count == 0 && Model.ProcessRows.Count == 0)
+{
+    <div class="alert alert-info">
+        <strong>No items yet.</strong> Add steps and milestones to build your dynamic timeline.
+    </div>
+}
+
+<div class="timeline-container @(totalRows > 8 ? "timeline-scrollable" : "") mb-4" data-timeline-days="@Model.TimelineDays" style="position: relative;">
+    <!-- Timeline header -->
+    <div class="timeline-header">
+        <div class="timeline-label"></div>
+        <div class="timeline-track">
+            @{
+                var markerInterval = Math.Max(1, Model.TimelineDays / 10);
+                for (int d = 0; d <= Model.TimelineDays; d += markerInterval)
+                {
+                    var markerDate = Model.TimelineStart.AddDays(d);
+                    var pos = Model.GetPosition(markerDate);
+                    <div class="timeline-date-marker" style="left: @F(pos)%;">
+                        <span>@markerDate.ToString("MMM dd")</span>
+                    </div>
+                }
+            }
+            <!-- Today marker -->
+            <div class="timeline-today" style="left: @F(todayPos)%;"
+                 title="Today (@today.ToString("yyyy-MM-dd"))">
+                <div class="today-line"></div>
+                <span class="today-label">Today</span>
+            </div>
+            <!-- Milestone markers in header -->
+            @foreach (var ms in Model.Milestones)
+            {
+                var msPos = Model.GetPosition(ms.Date);
+                var msColor = ms.Color switch
+                {
+                    MilestoneColor.Green => "#198754",
+                    MilestoneColor.Red => "#dc3545",
+                    _ => "#0d6efd"
+                };
+                var isMsToday = ms.Date.Date == today;
+                <div class="timeline-milestone @(isMsToday ? "milestone-today" : "")" style="left: @F(msPos)%; --ms-color: @msColor;"
+                     title="@ms.Label (@ms.Date.ToString("yyyy-MM-dd"))@(isMsToday ? " — Today" : "")">
+                    <div class="milestone-line"></div>
+                    <span class="milestone-label">@ms.Label @(isMsToday ? "⭐" : "")</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Model.StepGroups.Count == 0 && Model.ProcessRows.Count == 0)
+    {
+        <!-- Empty row so the timeline still shows -->
+        <div class="timeline-row">
+            <div class="timeline-label">
+                <em class="text-muted">No items</em>
+            </div>
+            <div class="timeline-track" style="height: @(SynCraft.Pages.Timeline.IndexModel.LaneHeight)px;">
+                <div class="timeline-today" style="left: @F(todayPos)%;"><div class="today-line"></div></div>
+                @foreach (var ms in Model.Milestones)
+                {
+                    var msPos = Model.GetPosition(ms.Date);
+                    var msColor = ms.Color switch
+                    {
+                        MilestoneColor.Green => "#198754",
+                        MilestoneColor.Red => "#dc3545",
+                        _ => "#0d6efd"
+                    };
+                    <div class="timeline-milestone" style="left: @F(msPos)%; --ms-color: @msColor;"><div class="milestone-line"></div></div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <!-- Step group rows -->
+        @foreach (var group in Model.StepGroups)
+        {
+            var laneCount = Model.GroupLaneCount[group.PersonName];
+            var trackHeight = laneCount * SynCraft.Pages.Timeline.IndexModel.LaneHeight;
+
+            <div class="timeline-row">
+                <div class="timeline-label" title="@group.PersonName">
+                    <strong>@group.PersonName</strong>
+                    <small class="d-block text-muted">@group.Steps.Count step(s)</small>
+                </div>
+                <div class="timeline-track" style="height: @(trackHeight)px;">
+                    <div class="timeline-today" style="left: @F(todayPos)%;"><div class="today-line"></div></div>
+                    @foreach (var ms in Model.Milestones)
+                    {
+                        var msPos = Model.GetPosition(ms.Date);
+                        var msColor = ms.Color switch
+                        {
+                            MilestoneColor.Green => "#198754",
+                            MilestoneColor.Red => "#dc3545",
+                            _ => "#0d6efd"
+                        };
+                        <div class="timeline-milestone" style="left: @F(msPos)%; --ms-color: @msColor;"><div class="milestone-line"></div></div>
+                    }
+                    @foreach (var step in group.Steps)
+                    {
+                        var lane = Model.StepLanes[step.Id];
+                        var endPos = Model.GetPosition(step.EndDate);
+                        var isOverdue = DateTime.Today > step.EndDate.Date
+                            && step.State != StepState.Done
+                            && step.State != StepState.Cancelled;
+                        var stepClass = step.State switch
+                        {
+                            StepState.Done => "step-done",
+                            StepState.Cancelled => "step-cancelled",
+                            StepState.InProgress => "step-inprogress",
+                            StepState.InRisk => "step-inrisk",
+                            _ => isOverdue ? "step-delayed" : "step-notstarted"
+                        };
+
+                        @* Duration bar *@
+                        if (step.StartDate < step.EndDate)
+                        {
+                            var startPos = Model.GetPosition(step.StartDate);
+                            var barWidth = endPos - startPos;
+                            var barTop = lane * SynCraft.Pages.Timeline.IndexModel.LaneHeight + 42;
+                            <div class="pin-duration @stepClass"
+                                 style="left: @F(startPos)%; width: @F(barWidth)%; top: @(barTop)px;"></div>
+                        }
+
+                        <div class="timeline-pin @stepClass"
+                             style="left: @F(endPos)%; top: @(lane * SynCraft.Pages.Timeline.IndexModel.LaneHeight)px;"
+                             data-step-id="@step.Id"
+                             data-bs-toggle="modal" data-bs-target="#editStepModal"
+                             data-name="@step.Name"
+                             data-description="@(step.Description ?? "")"
+                             data-assignee="@step.AssigneeName"
+                             data-category="@((int)step.Category)"
+                             data-start="@step.StartDate.ToString("yyyy-MM-dd")"
+                             data-end="@step.EndDate.ToString("yyyy-MM-dd")"
+                             data-state="@((int)step.State)"
+                             title="@step.Name – @step.EndDate.ToString("yyyy-MM-dd")">
+                            <div class="pin-sign">
+                                <span class="badge category-@step.Category.ToString().ToLower()">@step.Category</span>
+                                <span class="pin-name">@step.Name</span>
+                                @if (isOverdue)
+                                {
+                                    <span class="badge bg-danger">!</span>
+                                }
+                            </div>
+                            <div class="pin-stem"></div>
+                            <div class="pin-dot"></div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <!-- Process instance rows -->
+        @foreach (var proc in Model.ProcessRows)
+        {
+            var procStartPos = Model.GetPosition(proc.StartDate);
+            var procEndPos = Model.GetPosition(proc.EndDate);
+            var barLeft = Math.Min(procStartPos, procEndPos);
+            var barWidth = Math.Abs(procEndPos - procStartPos);
+            var barClass = proc.Status == ProcessStatus.Completed ? "process-bar-completed" : "process-bar-active";
+            if (proc.IsCutStart) { barClass += " process-bar-cut-start"; }
+            if (proc.IsCutEnd) { barClass += " process-bar-cut-end"; }
+            var pct = proc.StepsTotal > 0 ? (int)(100.0 * proc.StepsDone / proc.StepsTotal) : 0;
+
+            <div class="timeline-row">
+                <div class="timeline-label" title="@proc.Name">
+                    <strong>
+                        <a asp-page="/Instances/View" asp-route-id="@proc.Id" class="text-decoration-none">
+                            @proc.Name
+                        </a>
+                    </strong>
+                    <small class="d-block text-muted">
+                        @if (proc.Status == ProcessStatus.Completed)
+                        {
+                            <span class="badge bg-success">Completed</span>
+                        }
+                        else
+                        {
+                            <span>@pct% done</span>
+                        }
+                        @if (proc.IsCutStart)
+                        {
+                            <span class="badge bg-warning text-dark" title="Actual start: @proc.StartDate.ToString("yyyy-MM-dd")">◂ cut</span>
+                        }
+                    </small>
+                </div>
+                <div class="timeline-track" style="height: @(SynCraft.Pages.Timeline.IndexModel.LaneHeight)px;">
+                    <div class="timeline-today" style="left: @F(todayPos)%;"><div class="today-line"></div></div>
+                    @foreach (var ms in Model.Milestones)
+                    {
+                        var msPos = Model.GetPosition(ms.Date);
+                        var msColor = ms.Color switch
+                        {
+                            MilestoneColor.Green => "#198754",
+                            MilestoneColor.Red => "#dc3545",
+                            _ => "#0d6efd"
+                        };
+                        <div class="timeline-milestone" style="left: @F(msPos)%; --ms-color: @msColor;"><div class="milestone-line"></div></div>
+                    }
+                    <div class="process-bar @barClass"
+                         style="left: @F(barLeft)%; width: @F(barWidth)%;"
+                         title="@proc.Name: @proc.StartDate.ToString("yyyy-MM-dd") → @proc.EndDate.ToString("yyyy-MM-dd")"></div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+<!-- Step list table -->
+@if (Model.Steps.Count > 0)
+{
+    <h4 class="mt-4 mb-3">All Steps</h4>
+    <div class="table-responsive mb-4">
+        <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>Assignee</th>
+                    <th>Category</th>
+                    <th>Start</th>
+                    <th>End</th>
+                    <th>State</th>
+                    <th style="width: 120px;"></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var step in Model.Steps)
+                {
+                    var isOverdue = DateTime.Today > step.EndDate.Date
+                        && step.State != StepState.Done
+                        && step.State != StepState.Cancelled;
+                    var rowClass = step.State switch
+                    {
+                        StepState.Done => "table-success",
+                        StepState.Cancelled => "table-secondary",
+                        StepState.InRisk => "table-danger",
+                        _ => isOverdue ? "table-danger" : ""
+                    };
+                    <tr class="@rowClass">
+                        <td>
+                            <strong>@step.Name</strong>
+                            @if (!string.IsNullOrEmpty(step.Description))
+                            {
+                                <br /><small class="text-muted">@step.Description</small>
+                            }
+                        </td>
+                        <td>@step.AssigneeName</td>
+                        <td><span class="badge category-@step.Category.ToString().ToLower()">@step.Category</span></td>
+                        <td>@step.StartDate.ToString("yyyy-MM-dd")</td>
+                        <td>@step.EndDate.ToString("yyyy-MM-dd")</td>
+                        <td>
+                            @{
+                                var stateBadge = step.State switch
+                                {
+                                    StepState.Done => "bg-success",
+                                    StepState.Cancelled => "bg-secondary",
+                                    StepState.InProgress => "bg-primary",
+                                    StepState.InRisk => "bg-danger",
+                                    _ => isOverdue ? "bg-danger" : "bg-light text-dark"
+                                };
+                            }
+                            <span class="badge @stateBadge">@step.State</span>
+                            @if (isOverdue)
+                            {
+                                <span class="badge bg-danger">Overdue</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary btn-sm edit-step-btn"
+                                        data-bs-toggle="modal" data-bs-target="#editStepModal"
+                                        data-step-id="@step.Id"
+                                        data-name="@step.Name"
+                                        data-description="@(step.Description ?? "")"
+                                        data-assignee="@step.AssigneeName"
+                                        data-category="@((int)step.Category)"
+                                        data-start="@step.StartDate.ToString("yyyy-MM-dd")"
+                                        data-end="@step.EndDate.ToString("yyyy-MM-dd")"
+                                        data-state="@((int)step.State)">
+                                    ✏️
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm"
+                                        data-bs-toggle="modal" data-bs-target="#confirmDeleteStepModal"
+                                        data-delete-id="@step.Id"
+                                        data-delete-name="@step.Name">
+                                    🗑
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<!-- =============== ADD STEP MODAL =============== -->
+<div class="modal fade" id="addStepModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="AddStep" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Step</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required maxlength="200" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" class="form-control" rows="2" maxlength="500"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Assignee <span class="text-danger">*</span></label>
+                    <input type="text" name="assigneeName" class="form-control" required maxlength="100"
+                           list="personSuggestions" placeholder="Type or pick a person…" />
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Category</label>
+                        <select name="category" class="form-select">
+                            @foreach (var cat in Enum.GetValues<StepCategory>())
+                            {
+                                <option value="@cat">@cat</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">State</label>
+                        <select name="state" class="form-select">
+                            @foreach (var st in Enum.GetValues<StepState>())
+                            {
+                                <option value="@st">@st</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" name="startDate" class="form-control" required
+                               value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">End Date <span class="text-danger">*</span></label>
+                        <input type="date" name="endDate" class="form-control" required
+                               value="@DateTime.Today.AddDays(7).ToString("yyyy-MM-dd")" />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Add Step</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =============== EDIT STEP MODAL =============== -->
+<div class="modal fade" id="editStepModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="EditStep" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Step</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="stepId" id="editStepId" />
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" name="name" id="editStepName" class="form-control" required maxlength="200" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea name="description" id="editStepDescription" class="form-control" rows="2" maxlength="500"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Assignee <span class="text-danger">*</span></label>
+                    <input type="text" name="assigneeName" id="editStepAssignee" class="form-control" required maxlength="100"
+                           list="personSuggestions" />
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Category</label>
+                        <select name="category" id="editStepCategory" class="form-select">
+                            @foreach (var cat in Enum.GetValues<StepCategory>())
+                            {
+                                <option value="@cat">@cat</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">State</label>
+                        <select name="state" id="editStepState" class="form-select">
+                            @foreach (var st in Enum.GetValues<StepState>())
+                            {
+                                <option value="@st">@st</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Start Date <span class="text-danger">*</span></label>
+                        <input type="date" name="startDate" id="editStepStart" class="form-control" required />
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">End Date <span class="text-danger">*</span></label>
+                        <input type="date" name="endDate" id="editStepEnd" class="form-control" required />
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger me-auto" id="editStepDeleteBtn">🗑 Delete</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =============== ADD MILESTONE MODAL =============== -->
+<div class="modal fade" id="addMilestoneModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <form method="post" asp-page-handler="AddMilestone" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Milestone</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Label <span class="text-danger">*</span></label>
+                    <input type="text" name="label" class="form-control" required maxlength="200" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Date <span class="text-danger">*</span></label>
+                    <input type="date" name="date" class="form-control" required
+                           value="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Color</label>
+                    <select name="color" class="form-select">
+                        <option value="Blue" selected>🔵 Blue</option>
+                        <option value="Green">🟢 Green</option>
+                        <option value="Red">🔴 Red</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-info text-white">Add Milestone</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =============== MANAGE MODAL =============== -->
+<div class="modal fade" id="manageModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">📋 Manage Timeline Items</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                @if (Model.Milestones.Count > 0)
+                {
+                    <h6 class="mb-2">Milestones</h6>
+                    <table class="table table-sm table-hover mb-4">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Label</th>
+                                <th>Date</th>
+                                <th>Color</th>
+                                <th style="width: 60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ms in Model.Milestones)
+                            {
+                                var colorLabel = ms.Color switch
+                                {
+                                    MilestoneColor.Green => "🟢 Green",
+                                    MilestoneColor.Red => "🔴 Red",
+                                    _ => "🔵 Blue"
+                                };
+                                var isMsToday = ms.Date.Date == today;
+                                <tr class="@(isMsToday ? "table-info" : "")">
+                                    <td>
+                                        @ms.Label
+                                        @if (isMsToday)
+                                        {
+                                            <span class="badge bg-info text-dark">Today</span>
+                                        }
+                                    </td>
+                                    <td>@ms.Date.ToString("yyyy-MM-dd")</td>
+                                    <td>@colorLabel</td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                                    data-bs-toggle="modal" data-bs-target="#editMilestoneModal"
+                                                    data-milestone-id="@ms.Id"
+                                                    data-label="@ms.Label"
+                                                    data-date="@ms.Date.ToString("yyyy-MM-dd")"
+                                                    data-color="@ms.Color">
+                                                ✏️
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm"
+                                                    data-bs-toggle="modal" data-bs-target="#confirmDeleteMilestoneModal"
+                                                    data-delete-id="@ms.Id"
+                                                    data-delete-name="@ms.Label">
+                                                🗑
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted">No milestones.</p>
+                }
+
+                @if (Model.Steps.Count > 0)
+                {
+                    <h6 class="mb-2">Steps</h6>
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Assignee</th>
+                                <th>End Date</th>
+                                <th>State</th>
+                                <th style="width: 60px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var step in Model.Steps)
+                            {
+                                <tr>
+                                    <td>@step.Name</td>
+                                    <td>@step.AssigneeName</td>
+                                    <td>@step.EndDate.ToString("yyyy-MM-dd")</td>
+                                    <td><span class="badge bg-secondary">@step.State</span></td>
+                                    <td>
+                                        <button type="button" class="btn btn-outline-danger btn-sm"
+                                                data-bs-toggle="modal" data-bs-target="#confirmDeleteStepModal"
+                                                data-delete-id="@step.Id"
+                                                data-delete-name="@step.Name">
+                                            🗑
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted">No steps.</p>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =============== CLEANUP CONFIRMATION MODAL =============== -->
+<div class="modal fade" id="cleanupModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">🧹 Cleanup</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This will remove:</p>
+                <ul class="mb-0">
+                    <li>All <strong>completed/cancelled</strong> steps whose end date is before today</li>
+                    <li>All <strong>milestones</strong> whose date has passed</li>
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" asp-page-handler="Cleanup">
+                    <button type="submit" class="btn btn-danger">Cleanup</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =============== CONFIRM DELETE STEP MODAL =============== -->
+<div class="modal fade" id="confirmDeleteStepModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Step</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteStepName"></strong>?</p>
+                <p class="text-danger mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" asp-page-handler="DeleteStep" id="deleteStepForm">
+                    <input type="hidden" name="stepId" id="deleteStepId" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- =============== EDIT MILESTONE MODAL =============== -->
+<div class="modal fade" id="editMilestoneModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" asp-page-handler="EditMilestone" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Milestone</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" name="milestoneId" id="editMilestoneId" />
+                <div class="mb-3">
+                    <label class="form-label">Label <span class="text-danger">*</span></label>
+                    <input type="text" name="label" id="editMilestoneLabel" class="form-control" required maxlength="200" />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Date <span class="text-danger">*</span></label>
+                    <input type="date" name="date" id="editMilestoneDate" class="form-control" required />
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Color</label>
+                    <select name="color" id="editMilestoneColor" class="form-select">
+                        <option value="Blue">🔵 Blue</option>
+                        <option value="Green">🟢 Green</option>
+                        <option value="Red">🔴 Red</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-danger me-auto" id="editMilestoneDeleteBtn">🗑 Delete</button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="submit" class="btn btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- =============== CONFIRM DELETE MILESTONE MODAL =============== -->
+<div class="modal fade" id="confirmDeleteMilestoneModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Milestone</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteMilestoneName"></strong>?</p>
+                <p class="text-danger mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" asp-page-handler="DeleteMilestone" id="deleteMilestoneForm">
+                    <input type="hidden" name="milestoneId" id="deleteMilestoneId" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Person suggestions datalist -->
+<datalist id="personSuggestions">
+    @foreach (var person in Model.KnownPersons)
+    {
+        <option value="@person" />
+    }
+</datalist>
+
+@section Scripts {
+<script>
+    // Populate Edit Step modal from data attributes
+    document.getElementById('editStepModal')?.addEventListener('show.bs.modal', function (event) {
+        var trigger = event.relatedTarget;
+        if (!trigger) return;
+
+        var stepId = trigger.getAttribute('data-step-id');
+        var name = trigger.getAttribute('data-name');
+        var desc = trigger.getAttribute('data-description');
+        var assignee = trigger.getAttribute('data-assignee');
+        var category = trigger.getAttribute('data-category');
+        var start = trigger.getAttribute('data-start');
+        var end = trigger.getAttribute('data-end');
+        var state = trigger.getAttribute('data-state');
+
+        document.getElementById('editStepId').value = stepId;
+        document.getElementById('editStepName').value = name;
+        document.getElementById('editStepDescription').value = desc;
+        document.getElementById('editStepAssignee').value = assignee;
+        document.getElementById('editStepStart').value = start;
+        document.getElementById('editStepEnd').value = end;
+
+        // Set select by numeric value
+        var catSelect = document.getElementById('editStepCategory');
+        for (var i = 0; i < catSelect.options.length; i++) {
+            if (i == parseInt(category)) { catSelect.selectedIndex = i; break; }
+        }
+        var stateSelect = document.getElementById('editStepState');
+        for (var i = 0; i < stateSelect.options.length; i++) {
+            if (i == parseInt(state)) { stateSelect.selectedIndex = i; break; }
+        }
+
+        // Wire delete button in edit modal to open the confirm delete modal
+        var deleteBtn = document.getElementById('editStepDeleteBtn');
+        deleteBtn.setAttribute('data-delete-id', stepId);
+        deleteBtn.setAttribute('data-delete-name', name);
+        deleteBtn.onclick = function () {
+            // Close edit modal, then open confirm delete modal
+            var editModal = bootstrap.Modal.getInstance(document.getElementById('editStepModal'));
+            editModal.hide();
+            document.getElementById('deleteStepId').value = stepId;
+            document.getElementById('deleteStepName').textContent = name;
+            var confirmModal = new bootstrap.Modal(document.getElementById('confirmDeleteStepModal'));
+            confirmModal.show();
+        };
+    });
+
+    // Confirm Delete Step modal
+    document.getElementById('confirmDeleteStepModal')?.addEventListener('show.bs.modal', function (event) {
+        var trigger = event.relatedTarget;
+        if (!trigger) return;
+        document.getElementById('deleteStepId').value = trigger.getAttribute('data-delete-id');
+        document.getElementById('deleteStepName').textContent = trigger.getAttribute('data-delete-name');
+    });
+
+    // Populate Edit Milestone modal from data attributes
+    document.getElementById('editMilestoneModal')?.addEventListener('show.bs.modal', function (event) {
+        var trigger = event.relatedTarget;
+        if (!trigger) return;
+
+        var milestoneId = trigger.getAttribute('data-milestone-id');
+        var label = trigger.getAttribute('data-label');
+        var date = trigger.getAttribute('data-date');
+        var color = trigger.getAttribute('data-color');
+
+        document.getElementById('editMilestoneId').value = milestoneId;
+        document.getElementById('editMilestoneLabel').value = label;
+        document.getElementById('editMilestoneDate').value = date;
+
+        var colorSelect = document.getElementById('editMilestoneColor');
+        for (var i = 0; i < colorSelect.options.length; i++) {
+            if (colorSelect.options[i].value === color) { colorSelect.selectedIndex = i; break; }
+        }
+
+        // Wire delete button in edit modal to open the confirm delete modal
+        var deleteBtn = document.getElementById('editMilestoneDeleteBtn');
+        deleteBtn.onclick = function () {
+            var editModal = bootstrap.Modal.getInstance(document.getElementById('editMilestoneModal'));
+            editModal.hide();
+            document.getElementById('deleteMilestoneId').value = milestoneId;
+            document.getElementById('deleteMilestoneName').textContent = label;
+            var confirmModal = new bootstrap.Modal(document.getElementById('confirmDeleteMilestoneModal'));
+            confirmModal.show();
+        };
+    });
+
+    // Confirm Delete Milestone modal
+    document.getElementById('confirmDeleteMilestoneModal')?.addEventListener('show.bs.modal', function (event) {
+        var trigger = event.relatedTarget;
+        if (!trigger) return;
+        document.getElementById('deleteMilestoneId').value = trigger.getAttribute('data-delete-id');
+        document.getElementById('deleteMilestoneName').textContent = trigger.getAttribute('data-delete-name');
+    });
+</script>
+}

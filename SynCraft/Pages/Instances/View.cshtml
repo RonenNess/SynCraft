@@ -30,11 +30,10 @@
     <div>
         @if (Model.Instance.Status == ProcessStatus.Active && Model.Instance.CanComplete)
         {
-            <form method="post" asp-page-handler="CompleteProcess" asp-route-id="@Model.Instance.Id" class="d-inline">
-                <button type="submit" class="btn btn-success" onclick="return confirm('Mark this process as completed?')">
-                    ✓ Mark Complete
-                </button>
-            </form>
+            <button type="button" class="btn btn-success"
+                    data-bs-toggle="modal" data-bs-target="#confirmCompleteModal">
+                ✓ Mark Complete
+            </button>
         }
         @if (Model.Instance.Status == ProcessStatus.Active)
         {
@@ -70,7 +69,7 @@
 }
 else
 {
-    <div class="timeline-container mb-4" style="position: relative;">
+    <div class="timeline-container mb-4" data-timeline-days="@Model.TimelineDays" style="position: relative;">
         <!-- Timeline header with date markers -->
         <div class="timeline-header">
             <div class="timeline-label"></div>
@@ -325,6 +324,54 @@ else
     </div>
 </div>
 
+<!-- Mark Complete Confirmation Modal -->
+@if (Model.Instance.Status == ProcessStatus.Active && Model.Instance.CanComplete)
+{
+    <div class="modal fade" id="confirmCompleteModal" tabindex="-1">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Complete Process</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Mark <strong>@Model.Instance.Name</strong> as completed?</p>
+                    <p class="text-muted mb-0">All steps are done or cancelled.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <form method="post" asp-page-handler="CompleteProcess" asp-route-id="@Model.Instance.Id">
+                        <button type="submit" class="btn btn-success">✓ Mark Complete</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- Delete Milestone Confirmation Modal -->
+<div class="modal fade" id="confirmDeleteMsModal" tabindex="-1">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Delete Milestone</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteMsName"></strong>?</p>
+                <p class="text-danger mb-0">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" asp-page-handler="DeleteMilestone" asp-route-id="@Model.Instance.Id" id="deleteMsForm">
+                    <input type="hidden" name="milestoneId" id="deleteMsId" />
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Push Deadline Modal -->
 @if (Model.Instance.Status == ProcessStatus.Active)
 {
@@ -452,11 +499,12 @@ else
                                             </span>
                                         </td>
                                         <td>
-                                            <form method="post" asp-page-handler="DeleteMilestone" asp-route-id="@Model.Instance.Id" class="d-inline">
-                                                <input type="hidden" name="milestoneId" value="@ms.InstanceMilestoneId" />
-                                                <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                        onclick="return confirm('Delete this milestone?')">✕</button>
-                                            </form>
+                                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                                    data-bs-toggle="modal" data-bs-target="#confirmDeleteMsModal"
+                                                    data-delete-id="@ms.InstanceMilestoneId"
+                                                    data-delete-name="@ms.Label">
+                                                ✕
+                                            </button>
                                         </td>
                                     </tr>
                                 }
@@ -745,6 +793,14 @@ else
             if (commentStepId) {
                 commentStepId.value = stepId;
             }
+        });
+
+        // Delete Milestone confirmation modal
+        document.getElementById('confirmDeleteMsModal')?.addEventListener('show.bs.modal', function (event) {
+            var trigger = event.relatedTarget;
+            if (!trigger) return;
+            document.getElementById('deleteMsId').value = trigger.getAttribute('data-delete-id');
+            document.getElementById('deleteMsName').textContent = trigger.getAttribute('data-delete-name');
         });
     </script>
 }
