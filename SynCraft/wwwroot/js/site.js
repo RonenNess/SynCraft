@@ -40,3 +40,33 @@
     }
     window.addEventListener('resize', updateTimelines);
 })();
+
+// ===== Dark / Light mode toggle =====
+(function () {
+    function getTheme() {
+        return localStorage.getItem('syncraft-theme') || 'light';
+    }
+
+    function applyTheme(theme) {
+        document.documentElement.setAttribute('data-bs-theme', theme);
+        localStorage.setItem('syncraft-theme', theme);
+        var icon = document.getElementById('themeIcon');
+        if (icon) icon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    }
+
+    function init() {
+        applyTheme(getTheme());
+        var btn = document.getElementById('themeToggleBtn');
+        if (btn) {
+            btn.addEventListener('click', function () {
+                applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();

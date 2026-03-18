@@ -1,9 +1,15 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="light">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>@ViewData["Title"] - SynCraft</title>
+    <script>
+        (function () {
+            var theme = localStorage.getItem('syncraft-theme') || 'light';
+            document.documentElement.setAttribute('data-bs-theme', theme);
+        })();
+    </script>
     <script type="importmap"></script>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
@@ -11,7 +17,7 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-toggleable-sm border-bottom box-shadow mb-3" data-bs-theme-nav>
             <div class="container">
                 <a class="navbar-brand" asp-area="" asp-page="/Index">
                     <strong>⚙ SynCraft</strong>
@@ -23,27 +29,31 @@
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1 gap-2">
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Index">Dashboard</a>
+                            <a class="nav-link" asp-area="" asp-page="/Index">Dashboard</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Instances/Index">Processes</a>
+                            <a class="nav-link" asp-area="" asp-page="/Instances/Index">Processes</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Steps/ByPerson">Steps by Person</a>
+                            <a class="nav-link" asp-area="" asp-page="/Steps/ByPerson">Steps by Person</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Templates/Index">Templates</a>
+                            <a class="nav-link" asp-area="" asp-page="/Templates/Index">Templates</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Persons/Index">Persons</a>
+                            <a class="nav-link" asp-area="" asp-page="/Persons/Index">Persons</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Timeline/Index">Timeline</a>
+                            <a class="nav-link" asp-area="" asp-page="/Timeline/Index">Timeline</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-page="/Data/Index">Export / Import</a>
+                            <a class="nav-link" asp-area="" asp-page="/Data/Index">Export / Import</a>
                         </li>
                     </ul>
+                    <button type="button" class="btn btn-sm btn-outline-secondary ms-2" id="themeToggleBtn"
+                            title="Toggle dark/light mode">
+                        <span id="themeIcon">🌙</span>
+                    </button>
                 </div>
             </div>
         </nav>
